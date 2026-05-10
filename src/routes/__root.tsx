@@ -72,14 +72,18 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
+      { title: "Greenline Associates — Operations Dashboard" },
+      { name: "description", content: "A high-level operations and financial tracking dashboard for Greenline Associates projects." },
       { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
+      { property: "og:title", content: "Greenline Associates — Operations Dashboard" },
+      { property: "og:description", content: "A high-level operations and financial tracking dashboard for Greenline Associates projects." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:site", content: "@Lovable" },
+      { name: "twitter:title", content: "Greenline Associates — Operations Dashboard" },
+      { name: "twitter:description", content: "A high-level operations and financial tracking dashboard for Greenline Associates projects." },
+      { property: "og:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/epJrQZbk2wPmkRMsJOnZUNe2T0o1/social-images/social-1778400825914-logo.webp" },
+      { name: "twitter:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/epJrQZbk2wPmkRMsJOnZUNe2T0o1/social-images/social-1778400825914-logo.webp" },
     ],
     links: [
       {
