@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import logo from "../assets/logo.png";
 
 export const Route = createFileRoute("/")({
   component: Dashboard,
@@ -22,17 +23,98 @@ export const Route = createFileRoute("/")({
 // ─── DATA ──────────────────────────────────────────────
 type Milestone = { name: string; amount: number; date: string; status: "done" | "overdue" | "upcoming" };
 type Category = { name: string; budget: number; spent: number };
-type Material = { name: string; unit: string; dispatched: number; accounted: number; vendor: string };
+type Material = { id: string; name: string; unit: string; dispatched: number; accounted: number; vendor?: string; unitCost?: number; unitPrice?: number; gap?: number; totalCost?: number; category?: string };
 type Vendor = { name: string; invoice: string; date: string; due: string; amount: number; status: "paid" | "due" | "overdue" };
 type Salary = { name: string; role: string; amount: number; month: string; paid: boolean };
 type Petty = { date: string; desc: string; amount: number; flag: "ok" | "warn" | "risk" };
+
+const DEFAULT_UNIT_COSTS: Record<string, { unit: string; cost: number }> = {
+  // Zara
+  "GI Sections (False Ceiling)": { unit: "kg", cost: 75 },
+  "Gypsum Boards": { unit: "sheets", cost: 350 },
+  "Electrical Cables (1.5mm)": { unit: "mtrs", cost: 25 },
+  "LED Strip Lights": { unit: "mtrs", cost: 185 },
+  "Ceramic Tiles (Floor)": { unit: "sqft", cost: 60 },
+  "Plywood 18mm": { unit: "sheets", cost: 1850 },
+  // Max Fashion
+  "Electrical Cables (2.5mm)": { unit: "mtrs", cost: 40 },
+  "MCB Distribution Boards": { unit: "nos", cost: 4500 },
+  "Concrete Blocks": { unit: "nos", cost: 45 },
+  "Binding Wire": { unit: "kg", cost: 95 },
+  "PVC Conduits": { unit: "mtrs", cost: 15 },
+  // H&M
+  "RCC Shuttering Ply": { unit: "sheets", cost: 950 },
+  "TMT Steel Bars": { unit: "kg", cost: 65 },
+  "OPC Cement": { unit: "bags", cost: 420 },
+  "M-Sand": { unit: "cft", cost: 80 },
+};
+
+const CATEGORY_ITEMS: Record<string, Array<{ name: string; unit: string; cost: number }>> = {
+  "Electrical": [
+    { name: "LED Strip Lights", unit: "mtrs", cost: 185 },
+    { name: "Electrical Cables 1.5mm", unit: "mtrs", cost: 25 },
+    { name: "Electrical Cables 2.5mm", unit: "mtrs", cost: 40 },
+    { name: "MCB Switches", unit: "nos", cost: 120 },
+    { name: "Junction Boxes", unit: "nos", cost: 45 },
+    { name: "DB Panels", unit: "nos", cost: 12500 },
+    { name: "MCB Distribution Boards", unit: "nos", cost: 4500 },
+    { name: "PVC Conduits", unit: "mtrs", cost: 15 },
+  ],
+  "Civil Works": [
+    { name: "Cement Bags", unit: "bags", cost: 420 },
+    { name: "Steel Rods", unit: "kg", cost: 65 },
+    { name: "River Sand", unit: "cft", cost: 80 },
+    { name: "Bricks", unit: "nos", cost: 8 },
+    { name: "Concrete Blocks", unit: "nos", cost: 45 },
+    { name: "Binding Wire", unit: "kg", cost: 95 },
+  ],
+  "Flooring": [
+    { name: "Ceramic Tiles", unit: "sqft", cost: 60 },
+    { name: "Vitrified Tiles", unit: "sqft", cost: 85 },
+    { name: "Wooden Flooring", unit: "sqft", cost: 220 },
+    { name: "Epoxy Flooring", unit: "sqft", cost: 180 },
+  ],
+  "False Ceiling": [
+    { name: "GI Sections", unit: "kg", cost: 75 },
+    { name: "Gypsum Boards", unit: "sheets", cost: 350 },
+    { name: "Grid Tiles", unit: "sqft", cost: 45 },
+    { name: "Perforated Panels", unit: "sqft", cost: 120 },
+  ],
+  "Plumbing": [
+    { name: "PVC Pipes", unit: "mtrs", cost: 90 },
+    { name: "CPVC Pipes", unit: "mtrs", cost: 140 },
+    { name: "Brass Valves", unit: "nos", cost: 350 },
+    { name: "Elbow Joints", unit: "nos", cost: 35 },
+  ],
+  "Carpentry": [
+    { name: "Plywood 18mm", unit: "sheets", cost: 1850 },
+    { name: "Plywood 12mm", unit: "sheets", cost: 1350 },
+    { name: "Laminate Sheets", unit: "sheets", cost: 850 },
+    { name: "Wooden Beams", unit: "cft", cost: 650 },
+    { name: "MDF Boards", unit: "sheets", cost: 950 },
+  ],
+  "Glass & Glazing": [
+    { name: "Toughened Glass 12mm", unit: "sqft", cost: 250 },
+    { name: "Clear Glass 5mm", unit: "sqft", cost: 90 },
+    { name: "Aluminium Frame Channels", unit: "mtrs", cost: 180 },
+    { name: "Silicon Sealant", unit: "tubes", cost: 280 },
+  ],
+  "HVAC": [
+    { name: "Copper Piping", unit: "mtrs", cost: 450 },
+    { name: "Ducting Sheets", unit: "sqft", cost: 320 },
+    { name: "Grilles & Diffusers", unit: "nos", cost: 650 },
+    { name: "AC Brackets", unit: "pairs", cost: 850 },
+  ],
+};
 type Project = {
   id: number; name: string; client: string; location: string;
   status: "healthy" | "warning" | "danger"; statusLabel: string; stage: string;
-  startDate: string; endDate: string; contractValue: number; received: number; spent: number;
+  startDate: string; endDate: string; contractValue: number;
   completion: number; alertMsg: string; alertType: "safe" | "warning" | "danger";
-  milestones: Milestone[]; categories: Category[]; materials: Material[];
+  milestones: Milestone[]; categories?: Category[]; materials: Material[];
   vendors: Vendor[]; salary: Salary[]; pettyCash: Petty[];
+  totalBudget?: number;
+  categoryBudgets?: Record<string, number>;
 };
 
 const projects: Project[] = [
@@ -40,7 +122,7 @@ const projects: Project[] = [
     id: 0, name: "Zara — Orion Mall", client: "Zara India Pvt Ltd", location: "Orion Mall, Bengaluru",
     status: "healthy", statusLabel: "On Track", stage: "Execution",
     startDate: "10 Jan 2025", endDate: "30 Jun 2025",
-    contractValue: 3800000, received: 2280000, spent: 1820000, completion: 62,
+    contractValue: 3800000, completion: 62,
     alertMsg: "All systems healthy", alertType: "safe",
     milestones: [
       { name: "Advance (30%)", amount: 1140000, date: "15 Jan 2025", status: "done" },
@@ -59,12 +141,12 @@ const projects: Project[] = [
       { name: "Labour", budget: 400000, spent: 387000 },
     ],
     materials: [
-      { name: "GI Sections (False Ceiling)", unit: "kg", dispatched: 1200, accounted: 1185, vendor: "Shree Steel" },
-      { name: "Gypsum Boards", unit: "sheets", dispatched: 320, accounted: 318, vendor: "Saint Gobain" },
-      { name: "Electrical Cables (1.5mm)", unit: "mtrs", dispatched: 2400, accounted: 2390, vendor: "Polycab" },
-      { name: "LED Strip Lights", unit: "mtrs", dispatched: 180, accounted: 165, vendor: "Philips" },
-      { name: "Ceramic Tiles (Floor)", unit: "sqft", dispatched: 2800, accounted: 2800, vendor: "Kajaria" },
-      { name: "Plywood 18mm", unit: "sheets", dispatched: 95, accounted: 88, vendor: "Century Ply" },
+      { id: "zara-1", name: "GI Sections (False Ceiling)", category: "False Ceiling", unit: "kg", dispatched: 1200, accounted: 1185, unitPrice: 75, vendor: "Shree Steel" },
+      { id: "zara-2", name: "Gypsum Boards", category: "False Ceiling", unit: "sheets", dispatched: 320, accounted: 318, unitPrice: 350, vendor: "Saint Gobain" },
+      { id: "zara-3", name: "Electrical Cables (1.5mm)", category: "Electrical & Lighting", unit: "mtrs", dispatched: 2400, accounted: 2390, unitPrice: 25, vendor: "Polycab" },
+      { id: "zara-4", name: "LED Strip Lights", category: "Electrical & Lighting", unit: "mtrs", dispatched: 180, accounted: 165, unitPrice: 185, vendor: "Philips" },
+      { id: "zara-5", name: "Ceramic Tiles (Floor)", category: "Flooring", unit: "sqft", dispatched: 2800, accounted: 2800, unitPrice: 60, vendor: "Kajaria" },
+      { id: "zara-6", name: "Plywood 18mm", category: "Furniture & Fixtures", unit: "sheets", dispatched: 95, accounted: 88, unitPrice: 1850, vendor: "Century Ply" },
     ],
     vendors: [
       { name: "Shree Steel & Co.", invoice: "INV-2501", date: "05 Feb 2025", due: "07 Mar 2025", amount: 185000, status: "paid" },
@@ -92,7 +174,7 @@ const projects: Project[] = [
     id: 1, name: "Max Fashion — Phoenix", client: "Max Retail Pvt Ltd", location: "Phoenix Marketcity, Bengaluru",
     status: "warning", statusLabel: "Attention", stage: "Procurement",
     startDate: "01 Mar 2025", endDate: "31 Aug 2025",
-    contractValue: 2900000, received: 870000, spent: 940000, completion: 28,
+    contractValue: 2900000, completion: 28,
     alertMsg: "Electrical spend exceeding budget", alertType: "warning",
     milestones: [
       { name: "Advance (30%)", amount: 870000, date: "05 Mar 2025", status: "done" },
@@ -111,12 +193,12 @@ const projects: Project[] = [
       { name: "Labour", budget: 350000, spent: 210000 },
     ],
     materials: [
-      { name: "GI Sections (False Ceiling)", unit: "kg", dispatched: 800, accounted: 800, vendor: "Shree Steel" },
-      { name: "Electrical Cables (2.5mm)", unit: "mtrs", dispatched: 1800, accounted: 1760, vendor: "Finolex" },
-      { name: "MCB Distribution Boards", unit: "nos", dispatched: 12, accounted: 10, vendor: "Legrand" },
-      { name: "Concrete Blocks", unit: "nos", dispatched: 1200, accounted: 1190, vendor: "Local Supplier" },
-      { name: "Binding Wire", unit: "kg", dispatched: 80, accounted: 62, vendor: "Local Supplier" },
-      { name: "PVC Conduits", unit: "mtrs", dispatched: 950, accounted: 920, vendor: "Supreme" },
+      { id: "max-1", name: "GI Sections (False Ceiling)", category: "False Ceiling", unit: "kg", dispatched: 800, accounted: 800, unitPrice: 75, vendor: "Shree Steel" },
+      { id: "max-2", name: "Electrical Cables (2.5mm)", category: "Electrical & Lighting", unit: "mtrs", dispatched: 1800, accounted: 1760, unitPrice: 40, vendor: "Finolex" },
+      { id: "max-3", name: "MCB Distribution Boards", category: "Electrical & Lighting", unit: "nos", dispatched: 12, accounted: 10, unitPrice: 4500, vendor: "Legrand" },
+      { id: "max-4", name: "Concrete Blocks", category: "Civil Works", unit: "nos", dispatched: 1200, accounted: 1190, unitPrice: 45, vendor: "Local Supplier" },
+      { id: "max-5", name: "Binding Wire", category: "Civil Works", unit: "kg", dispatched: 80, accounted: 62, unitPrice: 95, vendor: "Local Supplier" },
+      { id: "max-6", name: "PVC Conduits", category: "Electrical & Lighting", unit: "mtrs", dispatched: 950, accounted: 920, unitPrice: 15, vendor: "Supreme" },
     ],
     vendors: [
       { name: "Legrand India", invoice: "INV-2701", date: "10 Mar 2025", due: "10 Apr 2025", amount: 285000, status: "paid" },
@@ -142,7 +224,7 @@ const projects: Project[] = [
     id: 2, name: "H&M — Mantri Square", client: "H&M Hennes & Mauritz", location: "Mantri Square Mall, Bengaluru",
     status: "danger", statusLabel: "At Risk", stage: "Pending PO",
     startDate: "15 Apr 2025", endDate: "30 Sep 2025",
-    contractValue: 3050000, received: 915000, spent: 420000, completion: 12,
+    contractValue: 3050000, completion: 12,
     alertMsg: "Client milestone payment 18 days overdue", alertType: "danger",
     milestones: [
       { name: "Advance (30%)", amount: 915000, date: "20 Apr 2025", status: "done" },
@@ -161,11 +243,11 @@ const projects: Project[] = [
       { name: "Labour", budget: 360000, spent: 125000 },
     ],
     materials: [
-      { name: "RCC Shuttering Ply", unit: "sheets", dispatched: 60, accounted: 60, vendor: "Century Ply" },
-      { name: "TMT Steel Bars", unit: "kg", dispatched: 650, accounted: 638, vendor: "JSW Steel" },
-      { name: "OPC Cement", unit: "bags", dispatched: 280, accounted: 275, vendor: "UltraTech" },
-      { name: "M-Sand", unit: "cft", dispatched: 420, accounted: 420, vendor: "Local Supplier" },
-      { name: "Binding Wire", unit: "kg", dispatched: 45, accounted: 38, vendor: "Local Supplier" },
+      { id: "hm-1", name: "RCC Shuttering Ply", category: "Civil Works", unit: "sheets", dispatched: 60, accounted: 60, unitPrice: 950, vendor: "Century Ply" },
+      { id: "hm-2", name: "TMT Steel Bars", category: "Civil Works", unit: "kg", dispatched: 650, accounted: 638, unitPrice: 65, vendor: "JSW Steel" },
+      { id: "hm-3", name: "OPC Cement", category: "Civil Works", unit: "bags", dispatched: 280, accounted: 275, unitPrice: 420, vendor: "UltraTech" },
+      { id: "hm-4", name: "M-Sand", category: "Civil Works", unit: "cft", dispatched: 420, accounted: 420, unitPrice: 80, vendor: "Local Supplier" },
+      { id: "hm-5", name: "Binding Wire", category: "Civil Works", unit: "kg", dispatched: 45, accounted: 38, unitPrice: 95, vendor: "Local Supplier" },
     ],
     vendors: [
       { name: "JSW Steel", invoice: "INV-2901", date: "20 Apr 2025", due: "20 May 2025", amount: 142000, status: "due" },
@@ -202,6 +284,313 @@ const allAlerts: Alert[] = [
 const fmt = (n: number) => "₹" + (n >= 100000 ? (n / 100000).toFixed(1) + "L" : (n / 1000).toFixed(0) + "K");
 const fmtFull = (n: number) => "₹" + n.toLocaleString("en-IN");
 const pct = (a: number, b: number) => Math.min(100, Math.round((a / b) * 100));
+
+const getSectionForAlert = (a: Alert): string | null => {
+  const title = a.title.toLowerCase();
+  const desc = a.desc.toLowerCase();
+  
+  if (title.includes("payment overdue") || title.includes("milestone") || desc.includes("milestone")) {
+    return "section-b";
+  }
+  if (title.includes("budget") || title.includes("overrun") || title.includes("overspend") || desc.includes("budget") || desc.includes("spend at")) {
+    return "section-d";
+  }
+  if (title.includes("material gap") || title.includes("procurement") || desc.includes("dispatched but unaccounted") || desc.includes("dispatched, only")) {
+    return "section-c";
+  }
+  if (title.includes("salary") || title.includes("petty cash") || desc.includes("salary") || desc.includes("petty cash") || title.includes("unusual spend")) {
+    return "section-f";
+  }
+  if (title.includes("invoice") || title.includes("vendor") || desc.includes("invoice") || desc.includes("payments current")) {
+    return "section-e";
+  }
+  return null;
+};
+
+const DEFAULT_CATEGORIES = [
+  "Civil Works",
+  "Electrical & Lighting",
+  "False Ceiling",
+  "Flooring",
+  "Furniture & Fixtures",
+  "Labour",
+  "Plumbing",
+  "Glass & Glazing",
+  "HVAC",
+  "Uncategorised"
+];
+
+let MASTER_CATEGORIES = [...DEFAULT_CATEGORIES];
+
+if (typeof window !== "undefined") {
+  const saved = localStorage.getItem("gl_master_categories");
+  if (saved) {
+    try {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed)) {
+        MASTER_CATEGORIES = Array.from(new Set([...DEFAULT_CATEGORIES, ...parsed]));
+      }
+    } catch (e) {
+      console.error("Error loading master categories:", e);
+    }
+  }
+}
+
+const getCategoryForMaterialName = (name: string): string => {
+  const normalized = name.toLowerCase();
+  for (const [catName, items] of Object.entries(CATEGORY_ITEMS)) {
+    if (items.some(item => normalized.includes(item.name.toLowerCase()) || item.name.toLowerCase().includes(normalized))) {
+      if (catName === "Electrical") return "Electrical & Lighting";
+      if (catName === "Carpentry") return "Furniture & Fixtures";
+      return catName;
+    }
+  }
+  if (normalized.includes("plywood") || normalized.includes("shuttering ply") || normalized.includes("century ply") || normalized.includes("board")) return "Furniture & Fixtures";
+  if (normalized.includes("cement") || normalized.includes("steel bar") || normalized.includes("m-sand") || normalized.includes("binding wire") || normalized.includes("concrete block") || normalized.includes("brick")) return "Civil Works";
+  if (normalized.includes("gi section") || normalized.includes("gypsum")) return "False Ceiling";
+  if (normalized.includes("electrical") || normalized.includes("cable") || normalized.includes("led") || normalized.includes("mcb") || normalized.includes("conduit") || normalized.includes("light") || normalized.includes("switch")) return "Electrical & Lighting";
+  if (normalized.includes("tile") || normalized.includes("floor") || normalized.includes("wooden flooring") || normalized.includes("epoxy")) return "Flooring";
+  if (normalized.includes("pipe") || normalized.includes("valve") || normalized.includes("joint") || normalized.includes("plumb")) return "Plumbing";
+  if (normalized.includes("glass") || normalized.includes("glazing") || normalized.includes("channel") || normalized.includes("sealant")) return "Glass & Glazing";
+  if (normalized.includes("copper piping") || normalized.includes("ducting") || normalized.includes("grille") || normalized.includes("diffuser") || normalized.includes("bracket") || normalized.includes("ac")) return "HVAC";
+  return "Uncategorised";
+};
+
+const updateMaterial = (m: any): Material => {
+  const id = m.id || `mat-${Math.random().toString(36).substring(2, 9)}`;
+  const name = m.name || "";
+  const category = m.category || getCategoryForMaterialName(name);
+  const dispatched = m.dispatched ?? 0;
+  const accounted = m.accounted ?? 0;
+  const unitPrice = m.unitPrice ?? 0;
+  const unit = m.unit || "nos";
+  
+  return {
+    ...m,
+    id,
+    name,
+    category,
+    unit,
+    dispatched,
+    accounted,
+    unitPrice,
+    gap: dispatched - accounted,
+    totalCost: dispatched * unitPrice
+  };
+};
+
+const migrateCategoryBudgets = (categories?: Category[]): Record<string, number> => {
+  const budgets: Record<string, number> = {};
+  if (!categories) return budgets;
+  categories.forEach((c) => {
+    let name = c.name;
+    if (name === "Electrical" || name === "Electrical & Lighting") {
+      name = "Electrical & Lighting";
+    } else if (name === "Carpentry" || name === "Furniture & Fixtures") {
+      name = "Furniture & Fixtures";
+    }
+    budgets[name] = (budgets[name] || 0) + c.budget;
+  });
+  return budgets;
+};
+
+const getDynamicCategories = (p: Project) => {
+  const categoriesList = [...MASTER_CATEGORIES];
+  (p.materials || []).forEach((m) => {
+    const cat = m.category || "Uncategorised";
+    if (!categoriesList.includes(cat)) {
+      categoriesList.push(cat);
+    }
+  });
+
+  const categoriesMap: Record<string, { name: string; spent: number; budget: number }> = {};
+  categoriesList.forEach((cat) => {
+    categoriesMap[cat] = {
+      name: cat,
+      spent: 0,
+      budget: p.categoryBudgets?.[cat] ?? 0,
+    };
+  });
+
+  (p.materials || []).forEach((m) => {
+    const cat = m.category || "Uncategorised";
+    if (cat === "Labour") {
+      return;
+    }
+    if (categoriesMap[cat]) {
+      categoriesMap[cat].spent += (m.dispatched ?? 0) * (m.unitPrice ?? 0);
+    }
+  });
+
+  const totalLabourCost = (p.salary || []).reduce((sum, s) => sum + s.amount, 0);
+  if (categoriesMap["Labour"]) {
+    categoriesMap["Labour"].spent = totalLabourCost;
+  }
+
+  return Object.values(categoriesMap).sort((a, b) => a.name.localeCompare(b.name));
+};
+
+const cleanCategoryBudgets = (p: Project): Record<string, number> => {
+  const budgets: Record<string, number> = {};
+  const activeCategories = new Set<string>(MASTER_CATEGORIES);
+  
+  (p.materials || []).forEach((m) => {
+    activeCategories.add(m.category || "Uncategorised");
+  });
+  
+  const currentBudgets = p.categoryBudgets || {};
+  activeCategories.forEach((cat) => {
+    budgets[cat] = currentBudgets[cat] ?? 0;
+  });
+  
+  return budgets;
+};
+
+const getProjectReceived = (p: Project): number => {
+  return p.milestones
+    .filter((m) => m.status === "done")
+    .reduce((sum, m) => sum + m.amount, 0);
+};
+
+const getProjectSpent = (p: Project): number => {
+  const cats = getDynamicCategories(p);
+  return cats.reduce((sum, c) => sum + c.spent, 0);
+};
+
+const getProjectNet = (p: Project): number => {
+  return getProjectReceived(p) - getProjectSpent(p);
+};
+
+const parseAnyDate = (dateStr: string, isEnd: boolean): Date => {
+  if (!dateStr || dateStr.trim() === "") {
+    return isEnd ? new Date("2999-12-31") : new Date("1970-01-01");
+  }
+  const trimmed = dateStr.trim();
+  
+  // Check if it's YYYY-MM-DD
+  if (trimmed.includes("-")) {
+    const parts = trimmed.split("-");
+    if (parts.length === 3) {
+      const year = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10) - 1; // 0-indexed
+      const day = parseInt(parts[2], 10);
+      if (!isNaN(year) && !isNaN(month) && !isNaN(day)) {
+        const date = new Date(year, month, day);
+        if (isEnd) {
+          date.setHours(23, 59, 59, 999);
+        } else {
+          date.setHours(0, 0, 0, 0);
+        }
+        return date;
+      }
+    }
+  }
+
+  // Check if it's DD Month YYYY
+  const parts = trimmed.split(/\s+/);
+  if (parts.length === 3) {
+    const day = parseInt(parts[0], 10);
+    const monthStr = parts[1].toLowerCase();
+    const year = parseInt(parts[2], 10);
+    const months: { [key: string]: number } = {
+      jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
+      jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11,
+      january: 0, february: 1, march: 2, april: 3, june: 5,
+      july: 6, august: 7, september: 8, october: 9, november: 10, december: 11
+    };
+    const month = months[monthStr.substring(0, 3)] !== undefined ? months[monthStr.substring(0, 3)] : 0;
+    if (!isNaN(day) && !isNaN(year)) {
+      const date = new Date(year, month, day);
+      if (isEnd) {
+        date.setHours(23, 59, 59, 999);
+      } else {
+        date.setHours(0, 0, 0, 0);
+      }
+      return date;
+    }
+  }
+
+  const fallback = new Date(trimmed);
+  if (isNaN(fallback.getTime())) {
+    return isEnd ? new Date("2999-12-31") : new Date("1970-01-01");
+  }
+  if (isEnd) {
+    fallback.setHours(23, 59, 59, 999);
+  } else {
+    fallback.setHours(0, 0, 0, 0);
+  }
+  return fallback;
+};
+
+const parseProjectDate = (dateStr: string, isEnd: boolean): Date => parseAnyDate(dateStr, isEnd);
+const parseInputDate = (dateStr: string, isEnd: boolean): Date => parseAnyDate(dateStr, isEnd);
+
+const parseAnyDateForDisplay = (dateStr: string): Date | null => {
+  if (!dateStr || dateStr.trim() === "") return null;
+  const parsed = parseAnyDate(dateStr, false);
+  if (parsed.getFullYear() === 1970 && parsed.getMonth() === 0 && parsed.getDate() === 1) {
+    return null;
+  }
+  return parsed;
+};
+
+const formatProjectDate = (dateStr: string): string => {
+  const date = parseAnyDateForDisplay(dateStr);
+  if (!date) return "Set date";
+  const day = date.getDate();
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const month = months[date.getMonth()];
+  const year = date.getFullYear();
+  const padDay = day < 10 ? "0" + day : day;
+  return `${padDay} ${month} ${year}`;
+};
+
+const toISODateString = (dateStr: string | number): string => {
+  if (!dateStr) return "";
+  const date = parseAnyDateForDisplay(String(dateStr));
+  if (!date) return "";
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+const getDaysRemainingOrDuration = (p: Project): string => {
+  const start = parseAnyDateForDisplay(p.startDate);
+  const end = parseAnyDateForDisplay(p.endDate);
+  
+  if (!start || !end) {
+    return "Dates not set";
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const startMs = start.getTime();
+  const endMs = end.getTime();
+  const todayMs = today.getTime();
+
+  const msPerDay = 24 * 60 * 60 * 1000;
+
+  if (todayMs < startMs) {
+    const diffDays = Math.ceil((startMs - todayMs) / msPerDay);
+    return `Starts in ${diffDays} day${diffDays === 1 ? "" : "s"}`;
+  } else if (todayMs <= endMs) {
+    const diffDays = Math.ceil((endMs - todayMs) / msPerDay);
+    return `${diffDays} day${diffDays === 1 ? "" : "s"} remaining`;
+  } else {
+    const diffDays = Math.floor((todayMs - endMs) / msPerDay);
+    return `Ended ${diffDays} day${diffDays === 1 ? "" : "s"} ago`;
+  }
+};
+
+const isProjectInRange = (p: Project, fromDate: string, toDate: string): boolean => {
+  const pStart = parseProjectDate(p.startDate, false);
+  const pEnd = parseProjectDate(p.endDate, true);
+  const selStart = fromDate ? parseInputDate(fromDate, false) : new Date("1970-01-01");
+  const selEnd = toDate ? parseInputDate(toDate, true) : new Date("2999-12-31");
+  return pStart <= selEnd && pEnd >= selStart;
+};
 
 const STYLES = `
 :root {
@@ -567,9 +956,728 @@ main.gl-main{position:relative;z-index:1;padding:1.5rem 1.75rem 4rem;max-width:1
 @media(max-width:600px){
   .g4,.g2{grid-template-columns:1fr}
 }
+
+/* ── DATE RANGE PICKER ── */
+.date-picker-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.date-picker-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: .68rem;
+  color: var(--text-3);
+  margin-right: 4px;
+}
+.date-input-container {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.date-input-container:focus-within {
+  border-color: var(--green-2);
+  box-shadow: 0 0 0 2px var(--green-soft);
+}
+.date-input-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: .58rem;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+}
+.date-input {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: .7rem;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  outline: none;
+  padding: 0;
+  cursor: pointer;
+}
+.date-clear-btn {
+  font-family: 'Inter', sans-serif;
+  font-size: .68rem;
+  font-weight: 500;
+  color: var(--text-2);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.date-clear-btn:hover {
+  color: var(--text);
+  border-color: var(--border-2);
+  background: var(--surface-3);
+}
+.no-projects-msg {
+  text-align: center;
+  padding: 3rem 1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  color: var(--text-3);
+  font-size: .88rem;
+}
+
+/* ── PROJECT DETAIL ACTION BUTTON ── */
+.proj-new-btn {
+  font-family: 'Inter', sans-serif;
+  font-size: .76rem;
+  font-weight: 500;
+  padding: 6px 14px;
+  border-radius: 6px;
+  border: 1px dashed var(--green-2);
+  background: var(--green-soft);
+  color: var(--green);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.15s;
+}
+.proj-new-btn:hover {
+  background: var(--green-line);
+  color: var(--green);
+}
+
+/* ── MODAL STYLES ── */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(17, 24, 39, 0.4);
+  backdrop-filter: blur(4px);
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.modal-content {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  min-width: 480px;
+  max-width: 90vw;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+@media (max-width: 533px) {
+  .modal-content {
+    min-width: unset;
+    width: 90vw;
+  }
+}
+.modal-header {
+  position: sticky;
+  top: 0;
+  background: var(--surface);
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+}
+.modal-title {
+  font-family: 'Inter', sans-serif;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text);
+}
+.modal-close-btn {
+  background: transparent;
+  border: none;
+  font-size: 1.5rem;
+  line-height: 1;
+  color: var(--text-3);
+  cursor: pointer;
+  transition: color 0.15s;
+  padding: 4px;
+}
+.modal-close-btn:hover {
+  color: var(--text);
+}
+.modal-body {
+  padding: 2rem 1.5rem;
+}
+.modal-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 1.5rem;
+  border: 1px dashed var(--border-2);
+  border-radius: var(--r);
+  background: var(--surface-2);
+}
+.modal-placeholder-icon {
+  font-size: 2rem;
+  margin-bottom: 0.75rem;
+}
+.modal-placeholder-text {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.82rem;
+  color: var(--text-2);
+  line-height: 1.5;
+}
+.modal-footer {
+  position: sticky;
+  bottom: 0;
+  background: var(--surface);
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 1rem;
+  border-top: 1px solid var(--border);
+}
+.modal-btn-secondary {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.76rem;
+  font-weight: 500;
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-2);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.modal-btn-secondary:hover {
+  background: var(--surface-3);
+  color: var(--text);
+  border-color: var(--border-2);
+}
+.modal-btn-primary {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.76rem;
+  font-weight: 500;
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: 1px solid var(--green);
+  background: var(--green);
+  color: #fff;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.modal-btn-primary:hover {
+  background: var(--green-2);
+  border-color: var(--green-2);
+}
+.modal-btn-primary:disabled {
+  background: var(--surface-3);
+  border-color: var(--border-2);
+  color: var(--text-3);
+  cursor: not-allowed;
+}
+.editable-field {
+  cursor: pointer;
+  border-bottom: 1px dotted transparent;
+  transition: border-bottom-color 0.15s;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.editable-field:hover {
+  border-bottom: 1px dotted var(--green-2);
+}
+.editable-field::after {
+  content: " ✎";
+  font-size: 0.7em;
+  color: var(--text-3);
+  opacity: 0;
+  transition: opacity 0.15s;
+  font-weight: normal;
+}
+.editable-field:hover::after {
+  opacity: 0.6;
+}
+
+.inline-edit-input {
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  color: inherit;
+  background: var(--surface-3);
+  border: 1px solid var(--border-2);
+  border-radius: 4px;
+  padding: 2px 6px;
+  outline: none;
+  width: 100%;
+}
+.inline-edit-input:focus {
+  border-color: var(--green-2);
+  box-shadow: 0 0 0 2px var(--green-soft);
+}
+
+select.status-pill-select {
+  font-family: 'Inter', sans-serif;
+  font-size: .66rem;
+  font-weight: 500;
+  padding: 2px 6px;
+  border-radius: 999px;
+  border: 1px solid var(--border-2);
+  background: var(--surface);
+  color: var(--text);
+  outline: none;
+  cursor: pointer;
+}
+
+input.inline-pill-input {
+  font-family: 'Inter', sans-serif;
+  font-size: .66rem;
+  font-weight: 500;
+  padding: 2px 6px;
+  border-radius: 999px;
+  border: 1px solid var(--border-2);
+  background: var(--surface);
+  color: var(--text);
+  outline: none;
+  max-width: 120px;
+}
+.modal-form-group {
+  margin-bottom: 1.25rem;
+}
+.modal-form-group:last-child {
+  margin-bottom: 0;
+}
+.modal-form-label {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--text-2);
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.modal-form-input, .modal-form-select {
+  font-family: 'Inter', sans-serif;
+  width: 100%;
+  padding: 8px 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--border-2);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 0.82rem;
+  outline: none;
+  transition: all 0.15s;
+  box-sizing: border-box;
+}
+.modal-form-input:focus, .modal-form-select:focus {
+  border-color: var(--green-2);
+  background: var(--surface-3);
+  box-shadow: 0 0 0 2px var(--green-soft);
+}
+.dispatched-cell {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: space-between;
+}
+.qty-controls {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease-in-out;
+  display: inline-flex;
+  gap: 4px;
+}
+tr:hover .qty-controls {
+  opacity: 1;
+  pointer-events: auto;
+}
+.qty-btn {
+  background: var(--surface-3);
+  border: 1px solid var(--border-2);
+  color: var(--text);
+  border-radius: 4px;
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 0.8rem;
+  transition: all 0.1s ease;
+  user-select: none;
+  line-height: 1;
+  padding: 0;
+}
+.qty-btn:hover {
+  background: var(--green);
+  border-color: var(--green);
+  color: #fff;
+}
+.row-delete-container .row-delete-btn {
+  opacity: 0;
+  pointer-events: none;
+  background: none;
+  border: none;
+  color: var(--red);
+  font-size: 1.2rem;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+  transition: opacity 0.15s ease-in-out;
+}
+.row-delete-container:hover .row-delete-btn {
+  opacity: 0.7;
+  pointer-events: auto;
+}
+.row-delete-container .row-delete-btn:hover {
+  opacity: 1;
+}
+.material-add-btn {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.74rem;
+  font-weight: 500;
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px dashed var(--green-2);
+  background: var(--green-soft);
+  color: var(--green-2);
+  cursor: pointer;
+  transition: all 0.15s;
+  margin-top: 1rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.material-add-btn:hover {
+  background: var(--green-2);
+  color: #fff;
+}
+.autocomplete-suggestions {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: var(--surface);
+  border: 1px solid var(--border-2);
+  border-radius: 6px;
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: 1050;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  margin-top: 4px;
+}
+.autocomplete-suggestion-item {
+  padding: 8px 12px;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.82rem;
+  border-bottom: 1px solid var(--border);
+  transition: background 0.15s;
+}
+.autocomplete-suggestion-item:last-child {
+  border-bottom: none;
+}
+.autocomplete-suggestion-item:hover {
+  background: var(--surface-3);
+}
+.autocomplete-suggestion-name {
+  font-weight: 500;
+  color: var(--text);
+}
+.autocomplete-suggestion-category {
+  font-size: 0.72rem;
+  color: var(--text-3);
+  background: var(--surface-2);
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+}
+.autocomplete-no-results {
+  padding: 12px;
+  text-align: center;
+  font-size: 0.82rem;
+  color: var(--text-3);
+}
+.autocomplete-custom-option {
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 0.82rem;
+  color: var(--green-2);
+  font-weight: 500;
+  border-top: 1px dashed var(--border-2);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--green-soft);
+  transition: background 0.15s;
+}
+.autocomplete-custom-option:hover {
+  background: rgba(16, 185, 129, 0.15);
+}
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.dialog-box {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.5rem;
+  width: 100%;
+  max-width: 420px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  display: flex;
+  flex-direction: column;
+}
+.dialog-title {
+  font-family: 'Inter', sans-serif;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0 0 0.75rem 0;
+}
+.dialog-message {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.875rem;
+  color: var(--text-2);
+  line-height: 1.5;
+  margin: 0 0 1.5rem 0;
+  white-space: pre-line;
+}
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+.dialog-btn-cancel {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.76rem;
+  font-weight: 500;
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-2);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.dialog-btn-cancel:hover {
+  background: var(--surface-3);
+  color: var(--text);
+  border-color: var(--border-2);
+}
+.dialog-btn-confirm {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.76rem;
+  font-weight: 500;
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: 1px solid var(--red, #ef4444);
+  background: var(--red, #ef4444);
+  color: #fff;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.dialog-btn-confirm:hover {
+  background: #dc2626;
+  border-color: #dc2626;
+}
+.dialog-btn-ok {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.76rem;
+  font-weight: 500;
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: 1px solid var(--green);
+  background: var(--green);
+  color: #fff;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.dialog-btn-ok:hover {
+  background: var(--green-2);
+  border-color: var(--green-2);
+}
+.highlight-flash {
+  animation: section-flash 2s ease-out;
+  border-radius: 8px;
+}
+@keyframes section-flash {
+  0% {
+    outline: 2px solid var(--green);
+    outline-offset: 4px;
+    background-color: var(--green-soft);
+  }
+  100% {
+    outline: 2px solid transparent;
+    outline-offset: 4px;
+    background-color: transparent;
+  }
+}
 `;
 
+
 // ─── COMPONENTS ────────────────────────────────────────
+function InlineEdit({
+  value,
+  onSave,
+  type = "text",
+  options,
+  formatValue,
+  isNumeric = false,
+  className = "",
+  style,
+  inputClassName = "",
+}: {
+  value: string | number;
+  onSave: (val: any) => void;
+  type?: "text" | "number" | "select" | "date";
+  options?: { value: string; label: string }[];
+  formatValue?: (val: any) => string;
+  isNumeric?: boolean;
+  className?: string;
+  style?: React.CSSProperties;
+  inputClassName?: string;
+}) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editValue, setEditValue] = useState(value);
+
+  useEffect(() => {
+    setEditValue(value);
+  }, [value]);
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      save();
+    } else if (e.key === "Escape") {
+      setEditValue(value);
+      setIsEditing(false);
+    }
+  };
+
+  const save = () => {
+    let finalVal = editValue;
+    if (type === "date") {
+      if (finalVal) {
+        finalVal = formatProjectDate(String(finalVal));
+      } else {
+        finalVal = "";
+      }
+    } else if (isNumeric) {
+      finalVal = Number(editValue);
+      if (isNaN(finalVal)) finalVal = Number(value);
+    }
+    onSave(finalVal);
+    setIsEditing(false);
+  };
+
+  const inputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (isEditing && type === "date" && inputRef.current) {
+      try {
+        inputRef.current.showPicker();
+      } catch (err) {
+        // Fallback for environments where showPicker is not supported
+      }
+    }
+  }, [isEditing, type]);
+
+  if (isEditing) {
+    if (type === "select" && options) {
+      return (
+        <select
+          value={editValue}
+          onChange={(e) => setEditValue(e.target.value)}
+          onBlur={save}
+          autoFocus
+          className={inputClassName || "inline-edit-input"}
+          style={style}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {options.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
+      );
+    }
+
+    if (type === "date") {
+      return (
+        <input
+          ref={inputRef}
+          type="date"
+          value={toISODateString(editValue)}
+          onChange={(e) => setEditValue(e.target.value)}
+          onBlur={save}
+          onKeyDown={handleKeyDown}
+          autoFocus
+          className={inputClassName || "inline-edit-input"}
+          style={{ ...style, width: "auto" }}
+          onClick={(e) => e.stopPropagation()}
+        />
+      );
+    }
+
+    return (
+      <input
+        type={type}
+        value={editValue}
+        onChange={(e) => setEditValue(e.target.value)}
+        onBlur={save}
+        onKeyDown={handleKeyDown}
+        autoFocus
+        className={inputClassName || "inline-edit-input"}
+        style={style}
+        onClick={(e) => e.stopPropagation()}
+      />
+    );
+  }
+
+  const displayVal = formatValue ? formatValue(value) : value;
+  const isEmptyDate = type === "date" && (!value || String(value).trim() === "");
+
+  return (
+    <span
+      className={`editable-field ${className}`}
+      onClick={(e) => {
+        e.stopPropagation();
+        setIsEditing(true);
+      }}
+      style={{
+        display: "inline-flex",
+        cursor: "pointer",
+        color: isEmptyDate ? "var(--text-4)" : undefined,
+        fontStyle: isEmptyDate ? "italic" : undefined,
+        ...style,
+      }}
+    >
+      {isEmptyDate ? "Set date" : displayVal}
+    </span>
+  );
+}
+
 function Header({ screen, setScreen }: { screen: string; setScreen: (s: "home" | "detail" | "alerts") => void }) {
   const [date, setDate] = useState("");
   useEffect(() => {
@@ -578,8 +1686,11 @@ function Header({ screen, setScreen }: { screen: string; setScreen: (s: "home" |
   return (
     <header className="gl-header">
       <a className="logo" href="#" onClick={(e) => { e.preventDefault(); setScreen("home"); }}>
-        <div className="logo-box">G</div>
-        <div className="logo-name">Greenline <span>Associates</span></div>
+        <img src={logo} alt="Greenline Associates" style={{ width: '36px', height: '36px', objectFit: 'contain', borderRadius: '50%' }} />
+        <div className="logo-name">
+          <span style={{ color: '#16a34a', fontWeight: 700 }}>Greenline</span>
+          <span style={{ color: '#111827', fontWeight: 700 }}> Associates</span>
+        </div>
       </a>
       <div className="header-center">
         <button className={`nav-btn ${screen === "home" ? "active" : ""}`} onClick={() => setScreen("home")}>Command Centre</button>
@@ -594,50 +1705,170 @@ function Header({ screen, setScreen }: { screen: string; setScreen: (s: "home" |
   );
 }
 
-function HomeScreen({ open }: { open: (id: number) => void }) {
+function HomeScreen({
+  open,
+  fromDate,
+  toDate,
+  setFromDate,
+  setToDate,
+  projectList,
+  alertsList,
+  onNavigateToProject,
+}: {
+  open: (id: number) => void;
+  fromDate: string;
+  toDate: string;
+  setFromDate: (s: string) => void;
+  setToDate: (s: string) => void;
+  projectList: Project[];
+  alertsList: Alert[];
+  onNavigateToProject: (projectId: number, sectionId: string | null) => void;
+}) {
+  const filteredProjects = useMemo(() => {
+    return projectList.filter((p) => isProjectInRange(p, fromDate, toDate));
+  }, [projectList, fromDate, toDate]);
+
+  const { totalContractValue, totalReceived, totalSpent, netCash } = useMemo(() => {
+    let tContract = 0;
+    let tReceived = 0;
+    let tSpent = 0;
+    filteredProjects.forEach((p) => {
+      tContract += p.contractValue;
+      tReceived += getProjectReceived(p);
+      tSpent += getProjectSpent(p);
+    });
+    return {
+      totalContractValue: tContract,
+      totalReceived: tReceived,
+      totalSpent: tSpent,
+      netCash: tReceived - tSpent,
+    };
+  }, [filteredProjects]);
+
+  const receivedPct = totalContractValue > 0 ? pct(totalReceived, totalContractValue) : 0;
+  const spentPct = totalReceived > 0 ? pct(totalSpent, totalReceived) : 0;
+  const spentFillClass = spentPct > 90 ? "pf-red" : spentPct > 80 ? "pf-amber" : "pf-green";
+  const netCashColor = netCash >= 0 ? "c-green" : "c-red";
+  const netCashLabel = netCash >= 0 ? "+" + fmt(netCash) : "-" + fmt(Math.abs(netCash));
+  const netCashFillClass = netCash >= 0 ? "pf-green" : "pf-red";
+  const netCashHealth = netCash >= 0 ? "Positive" : "Negative";
+
+  const filteredAlerts = useMemo(() => {
+    return alertsList.filter((a) => filteredProjects.some((p) => p.name === a.project));
+  }, [alertsList, filteredProjects]);
+
   return (
     <div className="screen active">
-      <div className="sh mb" style={{ marginTop: ".25rem" }}>
+      <style>{`
+        .view-project-btn {
+          cursor: pointer;
+          transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease, color 0.18s ease;
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+        }
+        .view-project-btn:hover {
+          transform: scale(1.05);
+          box-shadow: 0 4px 14px rgba(0,0,0,0.15);
+          background: #16a34a;
+          color: #ffffff;
+          border-color: #16a34a;
+        }
+        .view-project-btn:active {
+          transform: scale(0.97);
+        }
+        .view-project-btn:hover .btn-arrow {
+          transform: translateX(4px);
+        }
+        .btn-arrow {
+          display: inline-block;
+          transition: transform 0.18s ease;
+        }
+      `}</style>
+      <div className="sh mb" style={{ marginTop: ".25rem", alignItems: "center" }}>
         <span className="sh-label">Business Overview</span>
         <div className="sh-line"></div>
-        <span className="sh-sub">All Projects · May 2025</span>
+        <div className="date-picker-wrapper">
+          <div className="date-input-container">
+            <label className="date-input-label" htmlFor="from-date">From</label>
+            <input
+              type="date"
+              id="from-date"
+              className="date-input"
+              value={fromDate}
+              onChange={(e) => {
+                const val = e.target.value;
+                setFromDate(val);
+                localStorage.setItem('greenline_date_filter', JSON.stringify({ from: val, to: toDate }));
+              }}
+            />
+          </div>
+          <div className="date-input-container">
+            <label className="date-input-label" htmlFor="to-date">To</label>
+            <input
+              type="date"
+              id="to-date"
+              className="date-input"
+              value={toDate}
+              onChange={(e) => {
+                const val = e.target.value;
+                setToDate(val);
+                localStorage.setItem('greenline_date_filter', JSON.stringify({ from: fromDate, to: val }));
+              }}
+            />
+          </div>
+          {(fromDate || toDate) && (
+            <button
+              className="date-clear-btn"
+              onClick={() => {
+                setFromDate("");
+                setToDate("");
+                localStorage.setItem('greenline_date_filter', JSON.stringify({ from: "", to: "" }));
+              }}
+            >
+              Reset
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="g4 mb fade-up">
         <div className="card">
           <div className="stat-lbl">Total Contract Value</div>
-          <div className="stat-val">₹87.5L</div>
-          <div className="stat-hint">Across 3 active projects</div>
+          <div className="stat-val">{fmt(totalContractValue)}</div>
+          <div className="stat-hint">
+            Across {filteredProjects.length} active project{filteredProjects.length === 1 ? "" : "s"}
+          </div>
           <div className="mini-prog">
-            <div className="mini-prog-meta"><span>Received</span><span>₹52.1L</span></div>
-            <div className="prog-track"><div className="prog-fill pf-gold" style={{ width: "59.5%" }}></div></div>
+            <div className="mini-prog-meta"><span>Received</span><span>{fmt(totalReceived)}</span></div>
+            <div className="prog-track"><div className="prog-fill pf-gold" style={{ width: `${receivedPct}%` }}></div></div>
           </div>
         </div>
         <div className="card">
           <div className="stat-lbl">Total Money Received</div>
-          <div className="stat-val c-green">₹52.1L</div>
+          <div className="stat-val c-green">{fmt(totalReceived)}</div>
           <div className="stat-hint">From clients this year</div>
           <div className="mini-prog">
-            <div className="mini-prog-meta"><span>Of total contract</span><span>59.5%</span></div>
-            <div className="prog-track"><div className="prog-fill pf-green" style={{ width: "59.5%" }}></div></div>
+            <div className="mini-prog-meta"><span>Of total contract</span><span>{receivedPct}%</span></div>
+            <div className="prog-track"><div className="prog-fill pf-green" style={{ width: `${receivedPct}%` }}></div></div>
           </div>
         </div>
         <div className="card">
           <div className="stat-lbl">Total Money Spent</div>
-          <div className="stat-val">₹41.8L</div>
+          <div className="stat-val">{fmt(totalSpent)}</div>
           <div className="stat-hint">Vendors + Labour + Materials</div>
           <div className="mini-prog">
-            <div className="mini-prog-meta"><span>Of received</span><span>80.2%</span></div>
-            <div className="prog-track"><div className="prog-fill pf-amber" style={{ width: "80.2%" }}></div></div>
+            <div className="mini-prog-meta"><span>Of received</span><span>{spentPct}%</span></div>
+            <div className="prog-track"><div className={`prog-fill ${spentFillClass}`} style={{ width: `${spentPct}%` }}></div></div>
           </div>
         </div>
         <div className="card">
           <div className="stat-lbl">Net Cash Position</div>
-          <div className="stat-val c-green">+₹10.3L</div>
+          <div className={`stat-val ${netCashColor}`}>{netCashLabel}</div>
           <div className="stat-hint">Received minus spent</div>
           <div className="mini-prog">
-            <div className="mini-prog-meta"><span>Health</span><span>Positive</span></div>
-            <div className="prog-track"><div className="prog-fill pf-green" style={{ width: "100%" }}></div></div>
+            <div className="mini-prog-meta"><span>Health</span><span>{netCashHealth}</span></div>
+            <div className="prog-track"><div className={`prog-fill ${netCashFillClass}`} style={{ width: "100%" }}></div></div>
           </div>
         </div>
       </div>
@@ -646,63 +1877,107 @@ function HomeScreen({ open }: { open: (id: number) => void }) {
         <div>
           <div className="sh mb"><span className="sh-label">Active Projects</span><div className="sh-line"></div></div>
           <div className="g3">
-            {projects.map((p) => {
-              const net = p.received - p.spent;
-              const netStr = net >= 0 ? "+" + fmt(net) : "-" + fmt(Math.abs(net));
-              const netColor = net >= 0 ? "c-green" : "c-red";
-              const sp = p.status === "healthy" ? "sp-green" : p.status === "warning" ? "sp-amber" : "sp-red";
-              const pf = p.status === "healthy" ? "pf-green" : p.status === "warning" ? "pf-amber" : "pf-red";
-              const dotCol = p.alertType === "safe" ? "var(--green-2)" : p.alertType === "warning" ? "#d97706" : "var(--red)";
-              return (
-                <div key={p.id} className={`project-card ${p.status}`} onClick={() => open(p.id)}>
-                  <div className="pc-top">
-                    <div>
-                      <div className="pc-name">{p.name}</div>
-                      <div className="pc-client">{p.client}</div>
+            {filteredProjects.length > 0 ? (
+              filteredProjects.map((p) => {
+                const rcv = getProjectReceived(p);
+                const net = rcv - getProjectSpent(p);
+                const netStr = net >= 0 ? "+" + fmt(net) : "-" + fmt(Math.abs(net));
+                const netColor = net >= 0 ? "c-green" : "c-red";
+                const sp = p.status === "healthy" ? "sp-green" : p.status === "warning" ? "sp-amber" : "sp-red";
+                const pf = p.status === "healthy" ? "pf-green" : p.status === "warning" ? "pf-amber" : "pf-red";
+                const dotCol = p.alertType === "safe" ? "var(--green-2)" : p.alertType === "warning" ? "#d97706" : "var(--red)";
+                return (
+                  <div key={p.id} className={`project-card ${p.status}`} onClick={() => open(p.id)}>
+                    <div className="pc-top">
+                      <div>
+                        <div className="pc-name">{p.name}</div>
+                        <div className="pc-client">{p.client}</div>
+                        <div className="pc-dates" style={{ fontSize: "0.76rem", color: "var(--text-3)", marginTop: "0.2rem" }}>
+                          {formatProjectDate(p.startDate)} - {formatProjectDate(p.endDate)}
+                        </div>
+                      </div>
+                      <span className={`status-pill ${sp}`}>{p.statusLabel}</span>
                     </div>
-                    <span className={`status-pill ${sp}`}>{p.statusLabel}</span>
-                  </div>
-                  <div className="pc-stats">
-                    <div className="pc-stat-item">
-                      <div className="pc-stat-lbl">Contract</div>
-                      <div className="pc-stat-val">{fmt(p.contractValue)}</div>
+                    <div className="pc-stats">
+                      <div className="pc-stat-item">
+                        <div className="pc-stat-lbl">Contract</div>
+                        <div className="pc-stat-val">{fmt(p.contractValue)}</div>
+                      </div>
+                      <div className="pc-stat-item">
+                        <div className="pc-stat-lbl">Received</div>
+                        <div className="pc-stat-val c-green">{fmt(rcv)}</div>
+                      </div>
+                      <div className="pc-stat-item">
+                        <div className="pc-stat-lbl">Net</div>
+                        <div className={`pc-stat-val ${netColor}`}>{netStr}</div>
+                      </div>
                     </div>
-                    <div className="pc-stat-item">
-                      <div className="pc-stat-lbl">Received</div>
-                      <div className="pc-stat-val c-green">{fmt(p.received)}</div>
+                    <div className="mini-prog">
+                      <div className="mini-prog-meta"><span>Completion</span><span>{p.completion}%</span></div>
+                      <div className="prog-track"><div className={`prog-fill ${pf}`} style={{ width: `${p.completion}%` }}></div></div>
                     </div>
-                    <div className="pc-stat-item">
-                      <div className="pc-stat-lbl">Net</div>
-                      <div className={`pc-stat-val ${netColor}`}>{netStr}</div>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.76rem", color: "var(--text-3)", marginTop: "0.5rem" }}>
+                      <span>Timeline:</span>
+                      <span className="mono" style={{ fontWeight: 500 }}>{getDaysRemainingOrDuration(p)}</span>
                     </div>
+                    <div className="pc-alert" style={{ marginTop: ".7rem" }}>
+                      <div className="pc-alert-dot" style={{ background: dotCol }}></div>
+                      <span>{p.alertMsg}</span>
+                    </div>
+                    <button className="view-btn">View full project →</button>
                   </div>
-                  <div className="mini-prog">
-                    <div className="mini-prog-meta"><span>Completion</span><span>{p.completion}%</span></div>
-                    <div className="prog-track"><div className={`prog-fill ${pf}`} style={{ width: `${p.completion}%` }}></div></div>
-                  </div>
-                  <div className="pc-alert" style={{ marginTop: ".7rem" }}>
-                    <div className="pc-alert-dot" style={{ background: dotCol }}></div>
-                    <span>{p.alertMsg}</span>
-                  </div>
-                  <button className="view-btn">View full project →</button>
-                </div>
-              );
-            })}
+                );
+              })
+            ) : (
+              <div className="no-projects-msg" style={{ gridColumn: "span 3" }}>
+                No active projects found in the selected date range. Try expanding your search.
+              </div>
+            )}
           </div>
         </div>
         <div>
           <div className="sh mb"><span className="sh-label">Alerts · Action Needed</span><div className="sh-line"></div></div>
           <div>
-            {allAlerts.slice(0, 5).map((a, i) => (
-              <div key={i} className={`alert-item ai-${a.type}`}>
-                <div className="ai-icon">{a.type === "danger" ? "!" : a.type === "warning" ? "!" : "✓"}</div>
-                <div>
-                  <div className="ai-title">{a.title}</div>
-                  <div className="ai-desc">{a.desc}</div>
-                  <div className="ai-project">{a.project}</div>
-                </div>
+            {filteredAlerts.length > 0 ? (
+              filteredAlerts.slice(0, 5).map((a, i) => {
+                const matchingProj = projectList.find(
+                  (p) => p.name.trim().toLowerCase() === a.project.trim().toLowerCase()
+                );
+                const sectionId = getSectionForAlert(a);
+
+                return (
+                  <div key={i} className={`alert-item ai-${a.type}`}>
+                    <div className="ai-icon">{a.type === "danger" ? "!" : a.type === "warning" ? "!" : "✓"}</div>
+                    <div style={{ flex: 1 }}>
+                      <div className="ai-title">{a.title}</div>
+                      <div className="ai-desc">{a.desc}</div>
+                      <div className="ai-project">{a.project}</div>
+                      {matchingProj && (
+                        <button
+                          className="view-project-btn"
+                          onClick={() => onNavigateToProject(matchingProj.id, sectionId)}
+                          style={{
+                            padding: '6px 14px',
+                            borderRadius: '8px',
+                            border: '1.5px solid #16a34a',
+                            background: 'transparent',
+                            color: '#16a34a',
+                            fontSize: '13px',
+                            fontWeight: 500,
+                          }}
+                        >
+                          View Project <span className="btn-arrow">→</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })
+            ) : (
+              <div className="no-projects-msg" style={{ padding: "2rem 1rem" }}>
+                No active alerts for the selected range.
               </div>
-            ))}
+            )}
           </div>
         </div>
       </div>
@@ -710,50 +1985,659 @@ function HomeScreen({ open }: { open: (id: number) => void }) {
   );
 }
 
-function DetailScreen({ id, setId, back }: { id: number; setId: (i: number) => void; back: () => void }) {
-  const p = projects[id];
-  const net = p.received - p.spent;
+const cloneProjectAsTemplate = (p: Project): Project => {
+  return {
+    id: Date.now(),
+    name: "New Project",
+    client: "",
+    location: "",
+    status: "healthy",
+    statusLabel: "On Track",
+    stage: p.stage || "",
+    startDate: "",
+    endDate: "",
+    contractValue: 0,
+    completion: 0,
+    alertMsg: "All systems healthy",
+    alertType: "safe",
+    milestones: p.milestones.map((m) => ({
+      name: m.name,
+      amount: 0,
+      date: "",
+      status: "upcoming"
+    })),
+    categoryBudgets: {},
+    categories: [],
+    materials: [],
+    salary: [],
+    vendors: [],
+    pettyCash: [],
+    totalBudget: 0
+  };
+};
+
+function DetailScreen({
+  id,
+  setId,
+  back,
+  projectList,
+  onUpdateProject,
+  onCreateProject,
+  onDeleteProject,
+  confirmModal,
+  setConfirmModal,
+  highlightedSection,
+}: {
+  id: number;
+  setId: (i: number) => void;
+  back: () => void;
+  projectList: Project[];
+  onUpdateProject: (p: Project) => void;
+  onCreateProject: (p: Project) => void;
+  onDeleteProject: (id: number) => void;
+  confirmModal: {
+    open: boolean;
+    title: string;
+    message: string;
+    isAlert?: boolean;
+    onConfirm?: () => void;
+    onCancel?: () => void;
+  };
+  setConfirmModal: React.Dispatch<React.SetStateAction<{
+    open: boolean;
+    title: string;
+    message: string;
+    isAlert?: boolean;
+    onConfirm?: () => void;
+    onCancel?: () => void;
+  }>>;
+  highlightedSection: string | null;
+}) {
+  const [isAddMaterialModalOpen, setIsAddMaterialModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (highlightedSection) {
+      setTimeout(() => {
+        const el = document.getElementById(highlightedSection);
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      }, 150);
+    }
+  }, [highlightedSection]);
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [categoryFilter, setCategoryFilter] = useState<string>("All");
+  const [customCategory, setCustomCategory] = useState<string>("");
+  const [selectedItem, setSelectedItem] = useState<{ name: string; unit: string; cost: number; category: string } | null>(null);
+  const [isCustomItem, setIsCustomItem] = useState<boolean>(false);
+  const [customItemName, setCustomItemName] = useState<string>("");
+  const [customUnit, setCustomUnit] = useState<string>("");
+  const [customUnitCost, setCustomUnitCost] = useState<number>(0);
+  const [initialDispatched, setInitialDispatched] = useState<number>(1);
+  const [showSuggestions, setShowSuggestions] = useState<boolean>(false);
+
+  const openAddMaterialModal = () => {
+    setSearchQuery("");
+    setCategoryFilter("All");
+    setCustomCategory("");
+    setSelectedItem(null);
+    setIsCustomItem(false);
+    setCustomItemName("");
+    setCustomUnit("");
+    setCustomUnitCost(0);
+    setInitialDispatched(1);
+    setShowSuggestions(false);
+    setIsAddMaterialModalOpen(true);
+  };
+
+  const allSearchableItems = useMemo(() => {
+    const list: Array<{ name: string; unit: string; cost: number; category: string }> = [];
+    Object.entries(CATEGORY_ITEMS).forEach(([category, items]) => {
+      items.forEach((item) => {
+        list.push({ ...item, category });
+      });
+    });
+    return list;
+  }, []);
+
+  const filteredItems = useMemo(() => {
+    let items = allSearchableItems;
+    if (categoryFilter !== "All" && categoryFilter !== "Custom") {
+      items = items.filter(it => it.category === categoryFilter);
+    }
+    if (!searchQuery.trim()) return items;
+    const q = searchQuery.toLowerCase();
+    return items.filter(it => it.name.toLowerCase().includes(q));
+  }, [allSearchableItems, searchQuery, categoryFilter]);
+
+  const handleSelectSuggestion = (item: { name: string; unit: string; cost: number; category: string }) => {
+    setSelectedItem(item);
+    setIsCustomItem(false);
+    setSearchQuery(item.name);
+    setCustomUnitCost(item.cost);
+    setShowSuggestions(false);
+    let cat = item.category;
+    if (cat === "Electrical") cat = "Electrical & Lighting";
+    if (cat === "Carpentry") cat = "Furniture & Fixtures";
+    setCategoryFilter(cat);
+  };
+
+  const handleSelectCustomItem = () => {
+    setSelectedItem(null);
+    setIsCustomItem(true);
+    setCustomItemName(searchQuery);
+    setCustomUnit("");
+    setCustomUnitCost(0);
+    setShowSuggestions(false);
+  };
+
+  const handleAdjustQty = (index: number, delta: number) => {
+    const p = projectList.find((pp) => pp.id === id) || projectList[0];
+    const updatedMaterials = [...p.materials];
+    const currentQty = updatedMaterials[index].dispatched;
+    const newQty = Math.max(0, currentQty + delta);
+    updatedMaterials[index] = updateMaterial({
+      ...updatedMaterials[index],
+      dispatched: newQty
+    });
+    onUpdateProject({
+      ...p,
+      materials: updatedMaterials
+    });
+  };
+
+  const handleDeleteMaterial = (index: number) => {
+    const p = projectList.find((pp) => pp.id === id) || projectList[0];
+    const updatedMaterials = p.materials.filter((_, idx) => idx !== index);
+    onUpdateProject({
+      ...p,
+      materials: updatedMaterials
+    });
+  };
+
+  const handleAddMaterial = () => {
+    const p = projectList.find((pp) => pp.id === id) || projectList[0];
+    let name = "";
+    let unit = "";
+    let cost = 0;
+
+    if (isCustomItem || categoryFilter === "Custom") {
+      name = customItemName.trim();
+      unit = customUnit.trim();
+      cost = Number(customUnitCost) || 0;
+    } else if (selectedItem) {
+      name = selectedItem.name;
+      unit = selectedItem.unit;
+      cost = Number(customUnitCost) || 0;
+    } else {
+      return;
+    }
+
+    if (!name) return;
+
+    let category = categoryFilter;
+    if (categoryFilter === "Custom") {
+      const customCat = customCategory.trim();
+      if (!customCat) return;
+
+      const existing = MASTER_CATEGORIES.find(
+        (c) => c.toLowerCase() === customCat.toLowerCase()
+      );
+      if (existing) {
+        category = existing;
+      } else {
+        category = customCat;
+        MASTER_CATEGORIES.push(category);
+        if (typeof window !== "undefined") {
+          localStorage.setItem("gl_master_categories", JSON.stringify(MASTER_CATEGORIES));
+        }
+      }
+    }
+    if (!category || category === "All") return;
+
+    const newMaterial = updateMaterial({
+      name,
+      unit: unit || "nos",
+      dispatched: Number(initialDispatched) || 0,
+      accounted: 0,
+      unitCost: cost,
+      unitPrice: cost,
+      category
+    });
+
+    const updatedMaterials = [...p.materials, newMaterial];
+    onUpdateProject({
+      ...p,
+      materials: updatedMaterials
+    });
+
+    setIsAddMaterialModalOpen(false);
+  };
+
+  const p = projectList.find((pp) => pp.id === id) || projectList[0];
+  const received = getProjectReceived(p);
+  const spent = getProjectSpent(p);
+  const net = received - spent;
   const netStr = (net >= 0 ? "+" : "") + fmtFull(net);
-  const totalBudget = p.categories.reduce((s, c) => s + c.budget, 0);
-  const totalSpent = p.categories.reduce((s, c) => s + c.spent, 0);
+
+  // Derive categories list dynamically
+  const derivedCategories = getDynamicCategories(p);
+
+  const sumOfCategoryBudgets = Object.values(p.categoryBudgets || {}).reduce((s, b) => s + b, 0);
+  const totalBudget = p.totalBudget !== undefined ? p.totalBudget : sumOfCategoryBudgets;
+  const totalSpent = spent;
   const totalSalary = p.salary.reduce((s, e) => s + e.amount, 0);
   const sp = p.status === "healthy" ? "sp-green" : p.status === "warning" ? "sp-amber" : "sp-red";
   const pf = p.status === "healthy" ? "pf-green" : p.status === "warning" ? "pf-amber" : "pf-red";
+
+  const statusOptions = [
+    { value: "healthy", label: "On Track" },
+    { value: "warning", label: "Attention" },
+    { value: "danger", label: "At Risk" },
+  ];
+
+  const milestoneStatusOptions = [
+    { value: "done", label: "Collected" },
+    { value: "overdue", label: "Overdue" },
+    { value: "upcoming", label: "Upcoming" },
+  ];
+
+  const handleStatusChange = (newStatus: "healthy" | "warning" | "danger") => {
+    const labelMap = {
+      healthy: "On Track",
+      warning: "Attention",
+      danger: "At Risk"
+    };
+    const alertTypeMap = {
+      healthy: "safe",
+      warning: "warning",
+      danger: "danger"
+    } as const;
+    const alertMsgMap = {
+      healthy: "All systems healthy",
+      warning: "Electrical spend exceeding budget",
+      danger: "Client milestone payment 18 days overdue"
+    };
+    onUpdateProject({
+      ...p,
+      status: newStatus,
+      statusLabel: labelMap[newStatus],
+      alertType: alertTypeMap[newStatus],
+      alertMsg: alertMsgMap[newStatus]
+    });
+  };
+
+  const updateMilestone = (index: number, key: keyof Milestone, value: any) => {
+    const updatedMilestones = [...p.milestones];
+    updatedMilestones[index] = {
+      ...updatedMilestones[index],
+      [key]: value
+    };
+    onUpdateProject({
+      ...p,
+      milestones: updatedMilestones
+    });
+  };
+
+  const handleAddMilestone = () => {
+    const newMilestone: Milestone = {
+      name: "New Milestone",
+      date: "",
+      amount: 0,
+      status: "upcoming"
+    };
+    onUpdateProject({
+      ...p,
+      milestones: [...p.milestones, newMilestone]
+    });
+  };
+
+  const handleDeleteMilestone = (index: number) => {
+    const updatedMilestones = p.milestones.filter((_, idx) => idx !== index);
+    onUpdateProject({
+      ...p,
+      milestones: updatedMilestones
+    });
+  };
+
+  const deleteCategory = (catKey: string) => {
+    console.log("deleteCategory called for category:", catKey);
+
+    // 1. Remove category from MASTER_CATEGORIES
+    MASTER_CATEGORIES = MASTER_CATEGORIES.filter(
+      (cat) => cat.trim().toLowerCase() !== catKey.trim().toLowerCase()
+    );
+    if (typeof window !== "undefined") {
+      localStorage.setItem("gl_master_categories", JSON.stringify(MASTER_CATEGORIES));
+    }
+
+    // 2. Remove all materials in the current project under this category
+    const updatedMaterials = (p.materials || []).filter(
+      (m) => m.category?.trim().toLowerCase() !== catKey.trim().toLowerCase()
+    );
+
+    // 3. Remove budget for this category
+    const updatedBudgets = { ...(p.categoryBudgets || {}) };
+    delete updatedBudgets[catKey];
+
+    // 4. Update projects list and write synchronously to localStorage
+    const updatedProjects = projectList.map((proj) =>
+      proj.id === p.id
+        ? {
+            ...proj,
+            materials: updatedMaterials,
+            categoryBudgets: updatedBudgets
+          }
+        : proj
+    );
+    if (typeof window !== "undefined") {
+      localStorage.setItem("gl_projects", JSON.stringify(updatedProjects));
+    }
+
+    // 5. Update React state so the UI re-renders
+    onUpdateProject({
+      ...p,
+      materials: updatedMaterials,
+      categoryBudgets: updatedBudgets
+    });
+  };
+
+  const handleUpdateVendor = (index: number, key: keyof Vendor, value: any) => {
+    const updatedVendors = [...p.vendors];
+    updatedVendors[index] = {
+      ...updatedVendors[index],
+      [key]: value
+    };
+    onUpdateProject({
+      ...p,
+      vendors: updatedVendors
+    });
+  };
+
+  const handleDeleteVendor = (index: number) => {
+    const updatedVendors = p.vendors.filter((_, idx) => idx !== index);
+    onUpdateProject({
+      ...p,
+      vendors: updatedVendors
+    });
+  };
+
+  const handleAddInvoice = () => {
+    const newVendor: Vendor = {
+      name: "New Vendor",
+      invoice: `INV-${Math.floor(1000 + Math.random() * 9000)}`,
+      date: new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }),
+      due: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }),
+      amount: 0,
+      status: "due"
+    };
+    onUpdateProject({
+      ...p,
+      vendors: [...p.vendors, newVendor]
+    });
+  };
+
+  const handleUpdateSalary = (index: number, key: keyof Salary, value: any) => {
+    const updatedSalary = [...p.salary];
+    updatedSalary[index] = {
+      ...updatedSalary[index],
+      [key]: value
+    };
+    onUpdateProject({
+      ...p,
+      salary: updatedSalary
+    });
+  };
+
+  const handleDeleteSalary = (index: number) => {
+    const updatedSalary = p.salary.filter((_, idx) => idx !== index);
+    onUpdateProject({
+      ...p,
+      salary: updatedSalary
+    });
+  };
+
+  const handleAddStaff = () => {
+    const newSalary: Salary = {
+      name: "New Staff",
+      role: "Supervisor",
+      amount: 0,
+      month: new Date().toLocaleDateString("en-IN", { month: "short", year: "numeric" }),
+      paid: false
+    };
+    onUpdateProject({
+      ...p,
+      salary: [...p.salary, newSalary]
+    });
+  };
+
+  const handleUpdatePetty = (index: number, key: keyof Petty, value: any) => {
+    const updatedPetty = [...p.pettyCash];
+    updatedPetty[index] = {
+      ...updatedPetty[index],
+      [key]: value
+    };
+    onUpdateProject({
+      ...p,
+      pettyCash: updatedPetty
+    });
+  };
+
+  const getAutoFlag = (amount: number): "ok" | "warn" | "risk" => {
+    if (amount < 1000) return "ok";
+    if (amount <= 5000) return "warn";
+    return "risk";
+  };
+
+  const handleUpdatePettyAmount = (index: number, newAmount: number) => {
+    const updatedPetty = [...p.pettyCash];
+    updatedPetty[index] = {
+      ...updatedPetty[index],
+      amount: newAmount,
+      flag: getAutoFlag(newAmount)
+    };
+    onUpdateProject({
+      ...p,
+      pettyCash: updatedPetty
+    });
+  };
+
+  const handleDeletePettyCash = (index: number) => {
+    const updatedPetty = p.pettyCash.filter((_, idx) => idx !== index);
+    onUpdateProject({
+      ...p,
+      pettyCash: updatedPetty
+    });
+  };
+
+  const handleAddPettyCashEntry = () => {
+    const newPetty: Petty = {
+      date: new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short" }),
+      desc: "New expense entry",
+      amount: 0,
+      flag: "ok"
+    };
+    onUpdateProject({
+      ...p,
+      pettyCash: [...p.pettyCash, newPetty]
+    });
+  };
+
+  const getEffectiveVendorStatus = (v: Vendor): "paid" | "due" | "overdue" => {
+    if (v.status === "due") {
+      try {
+        const due = parseProjectDate(v.due, true);
+        if (new Date() > due) {
+          return "overdue";
+        }
+      } catch (e) {}
+    }
+    return v.status;
+  };
 
   return (
     <div className="screen active">
       <button className="back-btn" onClick={back}>← Back to Command Centre</button>
 
       <div className="proj-selector">
-        {projects.map((pp) => (
+        {projectList.map((pp) => (
           <button key={pp.id} className={`proj-tab ${pp.id === id ? "active" : ""}`} onClick={() => setId(pp.id)}>{pp.name}</button>
         ))}
+        <button className="proj-new-btn" onClick={() => {
+          const newProj = cloneProjectAsTemplate(p);
+          onCreateProject(newProj);
+        }}>
+          <span style={{ color: "var(--green-2)", fontWeight: "bold" }}>+</span> New Project
+        </button>
       </div>
 
       <div className="detail-header fade-up">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "1rem" }}>
           <div>
-            <div style={{ fontSize: "1.35rem", fontWeight: 700, letterSpacing: "-0.02em" }}>{p.name}</div>
-            <div style={{ fontSize: ".78rem", color: "var(--text-3)", marginTop: 4 }}>{p.client} · {p.location}</div>
-            <div style={{ display: "flex", gap: ".4rem", marginTop: ".75rem", flexWrap: "wrap" }}>
-              <span className={`status-pill ${sp}`}>{p.statusLabel}</span>
-              <span className="status-pill sp-neutral">Stage: {p.stage}</span>
-              <span className="status-pill sp-neutral">Completion: {p.completion}%</span>
+            <div style={{ fontSize: "1.35rem", fontWeight: 700, letterSpacing: "-0.02em" }}>
+              <InlineEdit
+                value={p.name}
+                onSave={(val) => onUpdateProject({ ...p, name: val })}
+              />
+            </div>
+            <div style={{ fontSize: ".78rem", color: "var(--text-3)", marginTop: 4, display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
+              <InlineEdit
+                value={p.client}
+                onSave={(val) => onUpdateProject({ ...p, client: val })}
+              />
+              <span>·</span>
+              <InlineEdit
+                value={p.location}
+                onSave={(val) => onUpdateProject({ ...p, location: val })}
+              />
+            </div>
+            <div style={{ display: "flex", gap: ".4rem", marginTop: ".75rem", flexWrap: "wrap", alignItems: "center" }}>
+              <InlineEdit
+                value={p.status}
+                type="select"
+                options={statusOptions}
+                formatValue={(val) => {
+                  const found = statusOptions.find(o => o.value === val);
+                  return found ? found.label : val;
+                }}
+                onSave={handleStatusChange}
+                className={`status-pill ${sp}`}
+                inputClassName="status-pill-select"
+              />
+              <InlineEdit
+                value={p.stage}
+                formatValue={(val) => `Stage: ${val}`}
+                onSave={(val) => onUpdateProject({ ...p, stage: val })}
+                className="status-pill sp-neutral"
+                inputClassName="inline-pill-input"
+              />
+              <InlineEdit
+                value={p.completion}
+                type="number"
+                isNumeric
+                formatValue={(val) => `Completion: ${val}%`}
+                onSave={(val) => onUpdateProject({ ...p, completion: Number(val) })}
+                className="status-pill sp-neutral"
+                inputClassName="inline-pill-input"
+              />
             </div>
           </div>
-          <div style={{ display: "flex", gap: "2rem", flexWrap: "wrap" }}>
+          <div style={{ display: "flex", gap: "2rem", flexWrap: "wrap", alignItems: "center" }}>
             <div style={{ textAlign: "right" }}>
               <div className="stat-lbl">Start Date</div>
-              <div className="mono" style={{ fontSize: ".82rem", fontWeight: 500 }}>{p.startDate}</div>
+              <InlineEdit
+                value={p.startDate}
+                type="date"
+                formatValue={formatProjectDate}
+                onSave={(val) => onUpdateProject({ ...p, startDate: val })}
+                className="mono"
+                style={{ fontSize: ".82rem", fontWeight: 500 }}
+              />
             </div>
             <div style={{ textAlign: "right" }}>
               <div className="stat-lbl">End Date</div>
-              <div className="mono" style={{ fontSize: ".82rem", fontWeight: 500 }}>{p.endDate}</div>
+              <InlineEdit
+                value={p.endDate}
+                type="date"
+                formatValue={formatProjectDate}
+                onSave={(val) => onUpdateProject({ ...p, endDate: val })}
+                className="mono"
+                style={{ fontSize: ".82rem", fontWeight: 500 }}
+              />
+            </div>
+            <div style={{ display: "flex", alignItems: "center" }}>
+              <button
+                className="delete-proj-btn"
+                onClick={() => {
+                  if (projectList.length <= 1) {
+                    setConfirmModal({
+                      open: true,
+                      title: "Delete Project",
+                      message: "You must have at least one project.",
+                      isAlert: true,
+                      onConfirm: () => {
+                        setConfirmModal((prev) => ({ ...prev, open: false }));
+                      },
+                      onCancel: () => {
+                        setConfirmModal((prev) => ({ ...prev, open: false }));
+                      }
+                    });
+                    return;
+                  }
+                  setConfirmModal({
+                    open: true,
+                    title: "Delete Project",
+                    message: `Are you sure you want to delete '${p.name}'? This cannot be undone.`,
+                    isAlert: false,
+                    onConfirm: () => {
+                      onDeleteProject(p.id);
+                      setConfirmModal((prev) => ({ ...prev, open: false }));
+                    },
+                    onCancel: () => {
+                      setConfirmModal((prev) => ({ ...prev, open: false }));
+                    }
+                  });
+                }}
+                style={{
+                  background: "var(--red-soft)",
+                  border: "1px solid var(--red-line)",
+                  color: "var(--red)",
+                  padding: "0.35rem 0.65rem",
+                  borderRadius: "6px",
+                  fontSize: "0.76rem",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "4px",
+                  transition: "all 0.15s ease",
+                  marginTop: "0.2rem"
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.background = "#fee2e2";
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.background = "var(--red-soft)";
+                }}
+              >
+                🗑 Delete Project
+              </button>
             </div>
           </div>
         </div>
         <div className="mini-prog" style={{ marginTop: "1.1rem" }}>
-          <div className="mini-prog-meta"><span>Overall Completion</span><span>{p.completion}%</span></div>
+          <div className="mini-prog-meta">
+            <span>Overall Completion</span>
+            <InlineEdit
+              value={p.completion}
+              type="number"
+              isNumeric
+              formatValue={(val) => `${val}%`}
+              onSave={(val) => onUpdateProject({ ...p, completion: Number(val) })}
+              className="mono"
+              style={{ fontSize: ".76rem", fontWeight: 600 }}
+            />
+          </div>
           <div className="prog-track" style={{ height: 8 }}>
             <div className={`prog-fill ${pf}`} style={{ width: `${p.completion}%` }}></div>
           </div>
@@ -761,27 +2645,42 @@ function DetailScreen({ id, setId, back }: { id: number; setId: (i: number) => v
       </div>
 
       {/* A · Money Summary */}
-      <div className="sh mb"><span className="sh-label">A · Money Summary</span><div className="sh-line"></div></div>
+      <div className={`sh mb ${highlightedSection === "section-a" ? "highlight-flash" : ""}`} id="section-a">
+        <span className="sh-label">A · Money Summary</span>
+        <div className="sh-line"></div>
+      </div>
       <div className="g4 mb fade-up delay-1">
         <div className="card">
           <div className="stat-lbl">Contract Value</div>
-          <div className="stat-val">{fmtFull(p.contractValue)}</div>
+          <InlineEdit
+            value={p.contractValue}
+            type="number"
+            isNumeric
+            formatValue={fmtFull}
+            onSave={(val) => onUpdateProject({ ...p, contractValue: Number(val) })}
+            className="stat-val"
+            style={{ display: "block" }}
+          />
           <div className="stat-hint">Signed PO from client</div>
         </div>
         <div className="card">
           <div className="stat-lbl">Received from Client</div>
-          <div className="stat-val c-green">{fmtFull(p.received)}</div>
+          <div className="stat-val c-green" style={{ display: "block" }}>
+            {fmtFull(received)}
+          </div>
           <div className="mini-prog">
-            <div className="mini-prog-meta"><span>Of contract</span><span>{pct(p.received, p.contractValue)}%</span></div>
-            <div className="prog-track"><div className="prog-fill pf-green" style={{ width: `${pct(p.received, p.contractValue)}%` }}></div></div>
+            <div className="mini-prog-meta"><span>Of contract</span><span>{p.contractValue > 0 ? pct(received, p.contractValue) : 0}%</span></div>
+            <div className="prog-track"><div className="prog-fill pf-green" style={{ width: `${p.contractValue > 0 ? pct(received, p.contractValue) : 0}%` }}></div></div>
           </div>
         </div>
         <div className="card">
           <div className="stat-lbl">Total Spent</div>
-          <div className="stat-val">{fmtFull(p.spent)}</div>
+          <div className="stat-val" style={{ display: "block" }}>
+            {fmtFull(spent)}
+          </div>
           <div className="mini-prog">
-            <div className="mini-prog-meta"><span>Of received</span><span>{pct(p.spent, p.received)}%</span></div>
-            <div className="prog-track"><div className={`prog-fill ${pct(p.spent, p.received) > 90 ? "pf-red" : "pf-amber"}`} style={{ width: `${pct(p.spent, p.received)}%` }}></div></div>
+            <div className="mini-prog-meta"><span>Of received</span><span>{received > 0 ? pct(spent, received) : 0}%</span></div>
+            <div className="prog-track"><div className={`prog-fill ${received > 0 && pct(spent, received) > 90 ? "pf-red" : "pf-amber"}`} style={{ width: `${received > 0 ? pct(spent, received) : 0}%` }}></div></div>
           </div>
         </div>
         <div className="card">
@@ -792,7 +2691,10 @@ function DetailScreen({ id, setId, back }: { id: number; setId: (i: number) => v
       </div>
 
       {/* B · Milestone */}
-      <div className="sh mb"><span className="sh-label">B · Milestone & Payment Tracker</span><div className="sh-line"></div></div>
+      <div className={`sh mb ${highlightedSection === "section-b" ? "highlight-flash" : ""}`} id="section-b">
+        <span className="sh-label">B · Milestone & Payment Tracker</span>
+        <div className="sh-line"></div>
+      </div>
       <div className="g2 mb fade-up delay-2">
         <div className="card">
           <div className="card-title">Billing Milestones</div>
@@ -803,19 +2705,63 @@ function DetailScreen({ id, setId, back }: { id: number; setId: (i: number) => v
               const statusLabel = m.status === "done" ? "Collected" : m.status === "overdue" ? "Overdue" : "Upcoming";
               const statusColor = m.status === "done" ? "c-green" : m.status === "overdue" ? "c-red" : "";
               return (
-                <div className="ms-item" key={i}>
+                <div className="ms-item row-delete-container" key={i}>
                   <div className={`ms-dot ${m.status}`}></div>
                   <div className="ms-body">
-                    <div className="ms-name">{m.name}</div>
-                    <div className="ms-date">{m.date}</div>
+                    <div style={{ display: "flex", flexDirection: "column" }}>
+                      <InlineEdit
+                        value={m.name}
+                        onSave={(val) => updateMilestone(i, "name", val)}
+                        className="ms-name"
+                        style={{ display: "inline-block" }}
+                      />
+                      <InlineEdit
+                        value={m.date}
+                        onSave={(val) => updateMilestone(i, "date", val)}
+                        className="ms-date"
+                        style={{ display: "inline-block" }}
+                      />
+                    </div>
                   </div>
                   <div className="ms-right">
-                    <div className={`ms-amount ${amtColor}`}>{fmtFull(m.amount)}</div>
-                    <div className={`ms-status ${statusColor}`} style={{ color: m.status === "upcoming" ? "var(--text-3)" : undefined }}>{statusLabel}</div>
+                    <InlineEdit
+                      value={m.amount}
+                      type="number"
+                      isNumeric
+                      formatValue={fmtFull}
+                      onSave={(val) => updateMilestone(i, "amount", Number(val))}
+                      className={`ms-amount ${amtColor}`}
+                      style={{ display: "inline-block" }}
+                    />
+                    <div style={{ marginTop: 2 }}>
+                      <InlineEdit
+                        value={m.status}
+                        type="select"
+                        options={milestoneStatusOptions}
+                        formatValue={(val) => {
+                          const found = milestoneStatusOptions.find(o => o.value === val);
+                          return found ? found.label : val;
+                        }}
+                        onSave={(val) => updateMilestone(i, "status", val)}
+                        className={`ms-status ${statusColor}`}
+                        style={{
+                          display: "inline-block",
+                          color: m.status === "upcoming" ? "var(--text-3)" : undefined,
+                        }}
+                      />
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", alignSelf: "stretch", paddingLeft: "4px" }}>
+                    <button className="row-delete-btn" onClick={() => handleDeleteMilestone(i)}>×</button>
                   </div>
                 </div>
               );
             })}
+          </div>
+          <div style={{ padding: "0 0 0 22px" }}>
+            <button className="material-add-btn" onClick={handleAddMilestone} style={{ marginTop: "0.5rem" }}>
+              <span style={{ fontWeight: "bold" }}>+</span> Add Milestone
+            </button>
           </div>
         </div>
         <div className="card">
@@ -843,7 +2789,10 @@ function DetailScreen({ id, setId, back }: { id: number; setId: (i: number) => v
       </div>
 
       {/* C · Materials */}
-      <div className="sh mb"><span className="sh-label">C · Procurement & Material Control</span><div className="sh-line"></div></div>
+      <div className={`sh mb ${highlightedSection === "section-c" ? "highlight-flash" : ""}`} id="section-c">
+        <span className="sh-label">C · Procurement & Material Control</span>
+        <div className="sh-line"></div>
+      </div>
       <div className="card mb fade-up delay-3" style={{ padding: 0 }}>
         <div style={{ padding: "1.15rem 1.3rem .9rem" }}>
           <div className="card-title">Material Dispatch vs Site Accountability</div>
@@ -851,47 +2800,178 @@ function DetailScreen({ id, setId, back }: { id: number; setId: (i: number) => v
         </div>
         <div style={{ overflowX: "auto" }}>
           <table className="tbl">
-            <thead><tr><th>Material</th><th>Vendor</th><th>Dispatched</th><th>Accounted</th><th>Gap</th><th>Status</th></tr></thead>
+            <thead>
+              <tr>
+                <th>Material</th>
+                <th>Dispatched</th>
+                <th>Accounted</th>
+                <th>Gap</th>
+                <th>Total Cost</th>
+                <th>Status</th>
+                <th style={{ width: "40px" }}></th>
+              </tr>
+            </thead>
             <tbody>
               {p.materials.map((m, i) => {
-                const gap = m.dispatched - m.accounted;
-                const gapPct = Math.round((gap / m.dispatched) * 100);
+                const gap = typeof m.gap === "number" ? m.gap : (m.dispatched - m.accounted);
+                const totalCost = typeof m.totalCost === "number" ? m.totalCost : (m.dispatched * (m.unitPrice ?? 0));
                 let flagClass = "flag-ok", flagLabel = "OK";
-                if (gap > 0 && gapPct <= 2) { flagClass = "flag-warn"; flagLabel = `Gap: ${gap}`; }
-                else if (gap > 0 && gapPct > 2) { flagClass = "flag-risk"; flagLabel = `Risk: ${gap} missing`; }
+                if (gap > 0 && gap <= 10) {
+                  flagClass = "flag-warn";
+                  flagLabel = `Gap: ${gap}`;
+                } else if (gap > 10) {
+                  flagClass = "flag-risk";
+                  flagLabel = `Risk: ${gap} missing`;
+                }
+
                 return (
                   <tr key={i}>
                     <td style={{ fontWeight: 500 }}>{m.name}</td>
-                    <td style={{ color: "var(--text-2)" }}>{m.vendor}</td>
-                    <td className="mono">{m.dispatched} {m.unit}</td>
-                    <td className="mono">{m.accounted} {m.unit}</td>
-                    <td className={`mono ${gap > 0 ? (gapPct > 2 ? "c-red" : "c-amber") : "c-green"}`}>{gap}</td>
-                    <td><span className={`flag ${flagClass}`}>{flagLabel}</span></td>
+                    <td className="mono">
+                      <div className="dispatched-cell">
+                        <span>{m.dispatched} {m.unit}</span>
+                        <div className="qty-controls">
+                          <button className="qty-btn" onClick={() => handleAdjustQty(i, -1)}>−</button>
+                          <button className="qty-btn" onClick={() => handleAdjustQty(i, 1)}>+</button>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="mono">
+                      <InlineEdit
+                        value={m.accounted}
+                        type="number"
+                        isNumeric
+                        formatValue={(val) => `${val} ${m.unit}`}
+                        onSave={(val) => {
+                          const updatedMaterials = [...p.materials];
+                          updatedMaterials[i] = updateMaterial({
+                            ...updatedMaterials[i],
+                            accounted: Math.max(0, Number(val))
+                          });
+                          onUpdateProject({
+                            ...p,
+                            materials: updatedMaterials
+                          });
+                        }}
+                        inputClassName="inline-edit-input"
+                      />
+                    </td>
+                    <td className={`mono ${gap > 0 ? (gap > 10 ? "c-red" : "c-amber") : "c-green"}`}>
+                      {gap} {m.unit}
+                    </td>
+                    <td className="mono">
+                      <div className="total-cost-cell" style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                        <div style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                          <span style={{ fontSize: "0.75rem", color: "var(--text-3)" }}>Rate:</span>
+                          <InlineEdit
+                            value={m.unitPrice ?? 0}
+                            type="number"
+                            isNumeric
+                            formatValue={(val) => `₹${Number(val).toLocaleString("en-IN")}/unit`}
+                            onSave={(val) => {
+                              const updatedMaterials = [...p.materials];
+                              updatedMaterials[i] = updateMaterial({
+                                ...updatedMaterials[i],
+                                unitPrice: Math.max(0, Number(val))
+                              });
+                              onUpdateProject({
+                                ...p,
+                                materials: updatedMaterials
+                              });
+                            }}
+                            inputClassName="inline-edit-input"
+                          />
+                        </div>
+                        <div style={{ fontWeight: 600, color: "var(--text-1)" }}>
+                          Total: {fmtFull(totalCost)}
+                        </div>
+                      </div>
+                    </td>
+                    <td>
+                      <span className={`flag ${flagClass}`}>{flagLabel}</span>
+                    </td>
+                    <td style={{ width: "40px", textAlign: "center" }}>
+                      <button className="row-delete-btn" onClick={() => handleDeleteMaterial(i)}>×</button>
+                    </td>
                   </tr>
                 );
               })}
             </tbody>
           </table>
         </div>
+        <div style={{ padding: "0 1.3rem 1.15rem" }}>
+          <button className="material-add-btn" onClick={openAddMaterialModal}>
+            <span style={{ fontWeight: "bold" }}>+</span> Add Material
+          </button>
+        </div>
       </div>
 
       {/* D · Budget */}
-      <div className="sh mb"><span className="sh-label">D · Expense vs Budget</span><div className="sh-line"></div></div>
+      <div className={`sh mb ${highlightedSection === "section-d" ? "highlight-flash" : ""}`} id="section-d">
+        <span className="sh-label">D · Expense vs Budget</span>
+        <div className="sh-line"></div>
+      </div>
       <div className="g2 mb fade-up delay-4">
         <div className="card">
           <div className="card-title">Category-wise Breakdown</div>
           <div className="card-sub">Budget vs actual spend per work category</div>
-          {p.categories.map((c, i) => {
-            const perc = pct(c.spent, c.budget);
-            const over = c.spent > c.budget;
+          {derivedCategories.map((c, i) => {
+            const perc = c.budget > 0 ? pct(c.spent, c.budget) : 0;
+            const over = c.budget > 0 && c.spent > c.budget;
             const fillClass = over ? "pf-red" : perc > 80 ? "pf-amber" : "pf-green";
+
             return (
-              <div className="cat-row" key={i}>
+              <div className="cat-row row-delete-container" key={i}>
                 <div className="cat-meta">
                   <span className="cat-name">{c.name}</span>
                   <div className="cat-right">
-                    <span className="cat-vals">{fmtFull(c.spent)} / {fmtFull(c.budget)}</span>
+                    <span className="cat-vals">
+                      <span>{fmtFull(c.spent)}</span>
+                      {" / "}
+                      <InlineEdit
+                        value={c.budget}
+                        type="number"
+                        isNumeric
+                        formatValue={fmtFull}
+                        onSave={(val) => {
+                          const updatedBudgets = {
+                            ...(p.categoryBudgets || {}),
+                            [c.name]: Math.max(0, Number(val))
+                          };
+                          onUpdateProject({
+                            ...p,
+                            categoryBudgets: updatedBudgets
+                          });
+                        }}
+                      />
+                    </span>
                     {over ? <span className="over-tag">OVER ▲{fmtFull(c.spent - c.budget)}</span> : <span className="ok-tag">OK</span>}
+                    {!DEFAULT_CATEGORIES.some(dc => dc.trim().toLowerCase() === c.name.trim().toLowerCase()) && (
+                      <button 
+                        className="row-delete-btn" 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const materialCount = (p.materials || []).filter(m => (m.category || "").trim().toLowerCase() === c.name.trim().toLowerCase()).length;
+                          setConfirmModal({
+                            open: true,
+                            title: "Delete Category",
+                            message: `Deleting this category will also remove ${materialCount} material item(s) under it in Section C. This cannot be undone. Confirm?`,
+                            isAlert: false,
+                            onConfirm: () => {
+                              deleteCategory(c.name);
+                              setConfirmModal((prev) => ({ ...prev, open: false }));
+                            },
+                            onCancel: () => {
+                              setConfirmModal((prev) => ({ ...prev, open: false }));
+                            }
+                          });
+                        }}
+                        title="Delete Category"
+                        style={{ fontSize: "1.1rem", marginLeft: "4px" }}
+                      >
+                        ×
+                      </button>
+                    )}
                   </div>
                 </div>
                 <div className="prog-track">
@@ -905,26 +2985,45 @@ function DetailScreen({ id, setId, back }: { id: number; setId: (i: number) => v
           <div className="card-title">Project Budget Summary</div>
           <div className="card-sub">Overall financial health</div>
           <div style={{ marginTop: ".5rem" }}>
-            <div className="summary-row"><span>Total Budget (all categories)</span><span className="mono" style={{ fontWeight: 600 }}>{fmtFull(totalBudget)}</span></div>
-            <div className="summary-row"><span>Total Spent</span><span className={`mono ${totalSpent > totalBudget ? "c-red" : "c-green"}`} style={{ fontWeight: 600 }}>{fmtFull(totalSpent)}</span></div>
+            <div className="summary-row">
+              <span>Total Budget (all categories)</span>
+              <InlineEdit
+                value={totalBudget}
+                type="number"
+                isNumeric
+                formatValue={fmtFull}
+                onSave={(val) => {
+                  onUpdateProject({
+                    ...p,
+                    totalBudget: Math.max(0, Number(val))
+                  });
+                }}
+                className="mono"
+                style={{ fontWeight: 600 }}
+              />
+            </div>
+            <div className="summary-row"><span>Total Spent</span><span className={`mono ${totalBudget > 0 && totalSpent > totalBudget ? "c-red" : "c-green"}`} style={{ fontWeight: 600 }}>{fmtFull(totalSpent)}</span></div>
             <div className="summary-row"><span>Remaining Budget</span><span className="mono" style={{ fontWeight: 600 }}>{fmtFull(totalBudget - totalSpent)}</span></div>
             <div className="summary-row" style={{ borderBottom: "none", paddingTop: ".9rem" }}>
               <span style={{ fontWeight: 600 }}>Budget Used</span>
-              <span className={`mono ${totalSpent / totalBudget > 1 ? "c-red" : totalSpent / totalBudget > 0.85 ? "c-amber" : "c-green"}`} style={{ fontSize: ".9rem", fontWeight: 700 }}>
-                {Math.round((totalSpent / totalBudget) * 100)}%
+              <span className={`mono ${totalBudget > 0 && totalSpent > totalBudget ? "c-red" : totalBudget > 0 && totalSpent / totalBudget > 0.85 ? "c-amber" : "c-green"}`} style={{ fontSize: ".9rem", fontWeight: 700 }}>
+                {totalBudget > 0 ? Math.round((totalSpent / totalBudget) * 100) : 0}%
               </span>
             </div>
           </div>
           <div className="mini-prog" style={{ marginTop: ".9rem" }}>
             <div className="prog-track" style={{ height: 8 }}>
-              <div className={`prog-fill ${totalSpent > totalBudget ? "pf-red" : totalSpent / totalBudget > 0.85 ? "pf-amber" : "pf-green"}`} style={{ width: `${Math.min(100, Math.round((totalSpent / totalBudget) * 100))}%` }}></div>
+              <div className={`prog-fill ${totalBudget > 0 && totalSpent > totalBudget ? "pf-red" : totalBudget > 0 && totalSpent / totalBudget > 0.85 ? "pf-amber" : "pf-green"}`} style={{ width: `${totalBudget > 0 ? Math.min(100, Math.round((totalSpent / totalBudget) * 100)) : 0}%` }}></div>
             </div>
           </div>
         </div>
       </div>
 
       {/* E · Vendors */}
-      <div className="sh mb"><span className="sh-label">E · Vendor Payments</span><div className="sh-line"></div></div>
+      <div className={`sh mb ${highlightedSection === "section-e" ? "highlight-flash" : ""}`} id="section-e">
+        <span className="sh-label">E · Vendor Payments</span>
+        <div className="sh-line"></div>
+      </div>
       <div className="card mb fade-up" style={{ padding: 0 }}>
         <div style={{ padding: "1.15rem 1.3rem .9rem" }}>
           <div className="card-title">Invoice Tracker — 30-Day Payment Window</div>
@@ -932,92 +3031,534 @@ function DetailScreen({ id, setId, back }: { id: number; setId: (i: number) => v
         </div>
         <div style={{ overflowX: "auto" }}>
           <table className="tbl">
-            <thead><tr><th>Vendor</th><th>Invoice No.</th><th>Invoice Date</th><th>Due Date</th><th>Amount</th><th>Status</th></tr></thead>
+            <thead>
+              <tr>
+                <th>Vendor</th>
+                <th>Invoice No.</th>
+                <th>Invoice Date</th>
+                <th>Due Date</th>
+                <th>Amount</th>
+                <th>Status</th>
+                <th style={{ width: "40px" }}></th>
+              </tr>
+            </thead>
             <tbody>
               {p.vendors.map((v, i) => {
-                const sc = v.status === "paid" ? "flag-paid" : v.status === "overdue" ? "flag-overdue" : "flag-due";
-                const sl = v.status === "paid" ? "Paid" : v.status === "overdue" ? "Overdue" : "Due";
+                const effStatus = getEffectiveVendorStatus(v);
+                const sc = effStatus === "paid" ? "flag-paid" : effStatus === "overdue" ? "flag-overdue" : "flag-due";
+                const vendorStatusOptions = [
+                  { value: "paid", label: "Paid" },
+                  { value: "due", label: "Due" },
+                  { value: "overdue", label: "Overdue" }
+                ];
                 return (
-                  <tr key={i}>
-                    <td style={{ fontWeight: 500 }}>{v.name}</td>
-                    <td className="mono" style={{ color: "var(--text-3)" }}>{v.invoice}</td>
-                    <td className="mono" style={{ color: "var(--text-2)" }}>{v.date}</td>
-                    <td className="mono" style={{ color: "var(--text-2)" }}>{v.due}</td>
-                    <td className="mono" style={{ fontWeight: 600 }}>{fmtFull(v.amount)}</td>
-                    <td><span className={`flag ${sc}`}>{sl}</span></td>
+                  <tr key={i} className="row-delete-container">
+                    <td style={{ fontWeight: 500 }}>
+                      <InlineEdit
+                        value={v.name}
+                        onSave={(val) => handleUpdateVendor(i, "name", val)}
+                      />
+                    </td>
+                    <td className="mono" style={{ color: "var(--text-3)" }}>
+                      <InlineEdit
+                        value={v.invoice}
+                        onSave={(val) => handleUpdateVendor(i, "invoice", val)}
+                      />
+                    </td>
+                    <td className="mono" style={{ color: "var(--text-2)" }}>
+                      <InlineEdit
+                        value={v.date}
+                        onSave={(val) => handleUpdateVendor(i, "date", val)}
+                      />
+                    </td>
+                    <td className="mono" style={{ color: "var(--text-2)" }}>
+                      <InlineEdit
+                        value={v.due}
+                        onSave={(val) => handleUpdateVendor(i, "due", val)}
+                      />
+                    </td>
+                    <td className="mono" style={{ fontWeight: 600 }}>
+                      <InlineEdit
+                        value={v.amount}
+                        type="number"
+                        isNumeric
+                        formatValue={fmtFull}
+                        onSave={(val) => handleUpdateVendor(i, "amount", Number(val))}
+                      />
+                    </td>
+                    <td>
+                      <InlineEdit
+                        value={v.status}
+                        type="select"
+                        options={vendorStatusOptions}
+                        formatValue={(val) => {
+                          const effVal = v.status === "due" && getEffectiveVendorStatus(v) === "overdue" ? "overdue" : val;
+                          const found = vendorStatusOptions.find(o => o.value === effVal);
+                          return found ? found.label : val;
+                        }}
+                        onSave={(val) => handleUpdateVendor(i, "status", val)}
+                        className={`flag ${sc}`}
+                        inputClassName="status-pill-select"
+                      />
+                    </td>
+                    <td style={{ width: "40px", textAlign: "center" }}>
+                      <button className="row-delete-btn" onClick={() => handleDeleteVendor(i)}>×</button>
+                    </td>
                   </tr>
                 );
               })}
             </tbody>
           </table>
         </div>
+        <div style={{ padding: "0 1.3rem 1.15rem" }}>
+          <button className="material-add-btn" onClick={handleAddInvoice}>
+            <span style={{ fontWeight: "bold" }}>+</span> Add Invoice
+          </button>
+        </div>
       </div>
 
       {/* F · Salary + Petty */}
-      <div className="sh mb"><span className="sh-label">F · Salary Register & Petty Cash</span><div className="sh-line"></div></div>
+      <div className={`sh mb ${highlightedSection === "section-f" ? "highlight-flash" : ""}`} id="section-f">
+        <span className="sh-label">F · Salary Register & Petty Cash</span>
+        <div className="sh-line"></div>
+      </div>
       <div className="g2 mb fade-up">
         <div className="card">
           <div className="card-title">Monthly Salary Register</div>
           <div className="card-sub">Staff assigned to this project · {fmtFull(totalSalary)}/month total</div>
           {p.salary.map((s, i) => (
-            <div className="sal-row" key={i}>
+            <div className="sal-row row-delete-container" key={i}>
               <div>
-                <div className="sal-name">{s.name}</div>
-                <div className="sal-role">{s.role}</div>
+                <div style={{ display: "block" }}>
+                  <InlineEdit
+                    value={s.name}
+                    onSave={(val) => handleUpdateSalary(i, "name", val)}
+                    className="sal-name"
+                    style={{ display: "inline-block" }}
+                  />
+                </div>
+                <div style={{ display: "block" }}>
+                  <InlineEdit
+                    value={s.role}
+                    onSave={(val) => handleUpdateSalary(i, "role", val)}
+                    className="sal-role"
+                    style={{ display: "inline-block" }}
+                  />
+                </div>
               </div>
-              <div className="sal-right">
-                <div className="sal-amount">{fmtFull(s.amount)}</div>
-                <div className="sal-date">{s.month} · <span className={s.paid ? "c-green" : "c-red"}>{s.paid ? "Paid" : "Pending"}</span></div>
+              <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                <div className="sal-right">
+                  <div style={{ display: "block" }}>
+                    <InlineEdit
+                      value={s.amount}
+                      type="number"
+                      isNumeric
+                      formatValue={fmtFull}
+                      onSave={(val) => handleUpdateSalary(i, "amount", Number(val))}
+                      className="sal-amount"
+                      style={{ display: "inline-block" }}
+                    />
+                  </div>
+                  <div className="sal-date">
+                    <InlineEdit
+                      value={s.month}
+                      onSave={(val) => handleUpdateSalary(i, "month", val)}
+                      style={{ display: "inline-block" }}
+                    />
+                    {" · "}
+                    <InlineEdit
+                      value={s.paid ? "true" : "false"}
+                      type="select"
+                      options={[
+                        { value: "true", label: "Paid" },
+                        { value: "false", label: "Pending" }
+                      ]}
+                      formatValue={(val) => val === "true" ? "Paid" : "Pending"}
+                      onSave={(val) => handleUpdateSalary(i, "paid", val === "true")}
+                      className={s.paid ? "c-green" : "c-red"}
+                      style={{ display: "inline-block", fontWeight: 600 }}
+                      inputClassName="status-pill-select"
+                    />
+                  </div>
+                </div>
+                <button className="row-delete-btn" onClick={() => handleDeleteSalary(i)} style={{ fontSize: "1.1rem" }}>×</button>
               </div>
             </div>
           ))}
+          <div style={{ marginTop: "1rem" }}>
+            <button className="material-add-btn" onClick={handleAddStaff} style={{ marginTop: 0 }}>
+              <span style={{ fontWeight: "bold" }}>+</span> Add Staff
+            </button>
+          </div>
         </div>
         <div className="card" style={{ padding: 0 }}>
           <div style={{ padding: "1.15rem 1.3rem .9rem" }}>
             <div className="card-title">Petty Cash Log</div>
             <div className="card-sub" style={{ marginBottom: 0 }}>Daily site expenses — flag if unusual</div>
           </div>
-          <table className="tbl">
-            <thead><tr><th>Date</th><th>Description</th><th>Amount</th><th>Flag</th></tr></thead>
-            <tbody>
-              {p.pettyCash.map((pc, i) => (
-                <tr key={i}>
-                  <td className="mono" style={{ color: "var(--text-3)" }}>{pc.date}</td>
-                  <td>{pc.desc}</td>
-                  <td className="mono" style={{ fontWeight: 600 }}>{fmtFull(pc.amount)}</td>
-                  <td>
-                    <span className={`flag ${pc.flag === "ok" ? "flag-ok" : pc.flag === "warn" ? "flag-due" : "flag-overdue"}`}>
-                      {pc.flag === "ok" ? "Normal" : pc.flag === "warn" ? "Watch" : "Verify"}
-                    </span>
-                  </td>
+          <div style={{ overflowX: "auto" }}>
+            <table className="tbl">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Description</th>
+                  <th>Amount</th>
+                  <th>Flag</th>
+                  <th style={{ width: "40px" }}></th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {p.pettyCash.map((pc, i) => {
+                  const pettyFlagOptions = [
+                    { value: "ok", label: "Normal" },
+                    { value: "warn", label: "Watch" },
+                    { value: "risk", label: "Risk" }
+                  ];
+                  return (
+                    <tr key={i} className="row-delete-container">
+                      <td className="mono" style={{ color: "var(--text-3)" }}>
+                        <InlineEdit
+                          value={pc.date}
+                          onSave={(val) => handleUpdatePetty(i, "date", val)}
+                        />
+                      </td>
+                      <td>
+                        <InlineEdit
+                          value={pc.desc}
+                          onSave={(val) => handleUpdatePetty(i, "desc", val)}
+                        />
+                      </td>
+                      <td className="mono" style={{ fontWeight: 600 }}>
+                        <InlineEdit
+                          value={pc.amount}
+                          type="number"
+                          isNumeric
+                          formatValue={fmtFull}
+                          onSave={(val) => handleUpdatePettyAmount(i, Number(val))}
+                        />
+                      </td>
+                      <td>
+                        <InlineEdit
+                          value={pc.flag}
+                          type="select"
+                          options={pettyFlagOptions}
+                          formatValue={(val) => {
+                            const found = pettyFlagOptions.find(o => o.value === val);
+                            return found ? found.label : val;
+                          }}
+                          onSave={(val) => handleUpdatePetty(i, "flag", val)}
+                          className={`flag ${pc.flag === "ok" ? "flag-ok" : pc.flag === "warn" ? "flag-due" : "flag-overdue"}`}
+                          inputClassName="status-pill-select"
+                        />
+                      </td>
+                      <td style={{ width: "40px", textAlign: "center" }}>
+                        <button className="row-delete-btn" onClick={() => handleDeletePettyCash(i)}>×</button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <div style={{ padding: "0 1.3rem 1.15rem" }}>
+            <button className="material-add-btn" onClick={handleAddPettyCashEntry}>
+              <span style={{ fontWeight: "bold" }}>+</span> Add Entry
+            </button>
+          </div>
         </div>
       </div>
+
+      {isAddMaterialModalOpen && (
+        <div className="modal-backdrop" onClick={() => setIsAddMaterialModalOpen(false)}>
+          <div className="modal-content fade-up" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3 className="modal-title">Add Material to Project</h3>
+              <button className="modal-close-btn" onClick={() => setIsAddMaterialModalOpen(false)}>×</button>
+            </div>
+            
+            <div className="modal-body" style={{ padding: "1.5rem" }}>
+              <div className="modal-form-group" style={{ position: "relative" }}>
+                <label className="modal-form-label">Search Material Item</label>
+                <input
+                  type="text"
+                  placeholder="Type to search items..."
+                  className="modal-form-input"
+                  value={searchQuery}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setSearchQuery(val);
+                    setShowSuggestions(true);
+                    setSelectedItem(null);
+                    setIsCustomItem(false);
+                  }}
+                  onFocus={() => setShowSuggestions(true)}
+                  onBlur={() => {
+                    setTimeout(() => setShowSuggestions(false), 200);
+                  }}
+                />
+                
+                {showSuggestions && categoryFilter !== "Custom" && (searchQuery.trim().length > 0 || categoryFilter !== "All") && (
+                  <div className="autocomplete-suggestions">
+                    {filteredItems.map((item) => (
+                      <div
+                        key={`${item.category}-${item.name}`}
+                        className="autocomplete-suggestion-item"
+                        onMouseDown={() => handleSelectSuggestion(item)}
+                      >
+                        <span className="autocomplete-suggestion-name">{item.name}</span>
+                        <span className="autocomplete-suggestion-category">{item.category}</span>
+                      </div>
+                    ))}
+                    
+                    {searchQuery.trim().length > 0 && (
+                      <div
+                        className="autocomplete-custom-option"
+                        onMouseDown={handleSelectCustomItem}
+                      >
+                        <span>+ Add "{searchQuery}" as custom item...</span>
+                      </div>
+                    )}
+                    
+                    {filteredItems.length === 0 && searchQuery.trim().length === 0 && (
+                      <div className="autocomplete-no-results">
+                        No standard items found.
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div className="modal-form-group">
+                <label className="modal-form-label">Category Filter / Browse</label>
+                <select
+                  className="modal-form-select"
+                  value={categoryFilter}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setCategoryFilter(val);
+                    setSelectedItem(null);
+                    if (val === "Custom") {
+                      setIsCustomItem(true);
+                      setCustomItemName(searchQuery);
+                      setCustomUnit("");
+                      setCustomUnitCost(0);
+                    } else {
+                      setIsCustomItem(false);
+                    }
+                  }}
+                >
+                  <option value="All">-- Select Category (Required) --</option>
+                  {MASTER_CATEGORIES.map((cat) => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                  <option value="Custom">Custom (New Category)</option>
+                </select>
+              </div>
+
+              {categoryFilter === "Custom" && (
+                <div className="modal-form-group">
+                  <label className="modal-form-label">Custom Category Name</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Painting, Fire Fighting"
+                    className="modal-form-input"
+                    value={customCategory}
+                    onChange={(e) => setCustomCategory(e.target.value)}
+                    autoFocus
+                  />
+                </div>
+              )}
+
+              {(selectedItem || isCustomItem) && (
+                <div style={{ marginTop: "1.5rem", borderTop: "1px dashed var(--border)", paddingTop: "1.5rem" }}>
+                  <div style={{ marginBottom: "1rem", fontSize: "0.8rem", color: "var(--green-2)", fontWeight: 600 }}>
+                    {isCustomItem ? "CUSTOM ITEM DETAILS" : "SELECTED ITEM DETAILS"}
+                  </div>
+
+                  {isCustomItem ? (
+                    <>
+                      <div className="modal-form-group">
+                        <label className="modal-form-label">Item Name</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. Emulsion Paint"
+                          className="modal-form-input"
+                          value={customItemName}
+                          onChange={(e) => setCustomItemName(e.target.value)}
+                        />
+                      </div>
+                      
+                      <div style={{ display: "flex", gap: "1rem", marginBottom: "1.25rem" }}>
+                        <div style={{ flex: 1 }}>
+                          <label className="modal-form-label">Unit of Measure</label>
+                          <input
+                            type="text"
+                            placeholder="e.g. ltrs, kg, bags"
+                            className="modal-form-input"
+                            value={customUnit}
+                            onChange={(e) => setCustomUnit(e.target.value)}
+                          />
+                        </div>
+                        
+                        <div style={{ flex: 1 }}>
+                          <label className="modal-form-label">Unit Cost (₹)</label>
+                          <input
+                            type="number"
+                            min="0"
+                            placeholder="0"
+                            className="modal-form-input"
+                            value={customUnitCost || ""}
+                            onChange={(e) => setCustomUnitCost(Number(e.target.value))}
+                          />
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    selectedItem && (
+                      <div style={{ background: "var(--surface-2)", padding: "1rem", borderRadius: "8px", border: "1px solid var(--border)", marginBottom: "1.25rem" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
+                          <span style={{ fontSize: "0.75rem", color: "var(--text-3)", fontWeight: 500, textTransform: "uppercase" }}>Item Name</span>
+                          <span style={{ fontSize: "0.75rem", color: "var(--text-3)", fontWeight: 500, textTransform: "uppercase" }}>Category</span>
+                        </div>
+                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "12px", alignItems: "center" }}>
+                          <span style={{ fontWeight: 600, fontSize: "0.9rem" }}>{selectedItem.name}</span>
+                          <span className="autocomplete-suggestion-category" style={{ fontSize: "0.7rem", margin: 0 }}>{selectedItem.category}</span>
+                        </div>
+                        
+                        <div style={{ display: "flex", gap: "1rem" }}>
+                          <div style={{ flex: 1 }}>
+                            <label className="modal-form-label">Unit</label>
+                            <div className="modal-form-input" style={{ background: "var(--surface-3)", color: "var(--text-2)", border: "1px solid var(--border)" }}>
+                              {selectedItem.unit}
+                            </div>
+                          </div>
+                          <div style={{ flex: 1 }}>
+                            <label className="modal-form-label">Unit Cost (₹)</label>
+                            <input
+                              type="number"
+                              min="0"
+                              className="modal-form-input"
+                              value={customUnitCost}
+                              onChange={(e) => setCustomUnitCost(Number(e.target.value))}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  )}
+
+                  <div className="modal-form-group">
+                    <label className="modal-form-label">Initial Dispatched Quantity</label>
+                    <input
+                      type="number"
+                      min="0"
+                      className="modal-form-input"
+                      value={initialDispatched}
+                      onChange={(e) => setInitialDispatched(Math.max(0, Number(e.target.value)))}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="modal-footer">
+              <button className="modal-btn-secondary" onClick={() => setIsAddMaterialModalOpen(false)}>Cancel</button>
+              <button
+                className="modal-btn-primary"
+                disabled={
+                  categoryFilter === "All" ||
+                  (!selectedItem && !isCustomItem) ||
+                  (isCustomItem && (!customItemName.trim() || !customUnit.trim() || initialDispatched < 0)) ||
+                  (categoryFilter === "Custom" && !customCategory.trim())
+                }
+                onClick={handleAddMaterial}
+              >
+                Add Material
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-function AlertsScreen() {
+function AlertsScreen({
+  alertsList,
+  projectList,
+  onNavigateToProject
+}: {
+  alertsList: Alert[];
+  projectList: Project[];
+  onNavigateToProject: (projectId: number, sectionId: string | null) => void;
+}) {
   const groups = useMemo(() => ({
-    danger: allAlerts.filter((a) => a.type === "danger"),
-    warning: allAlerts.filter((a) => a.type === "warning"),
-    safe: allAlerts.filter((a) => a.type === "safe"),
-  }), []);
-  const renderGroup = (items: Alert[]) => items.map((a, i) => (
-    <div key={i} className={`alert-item ai-${a.type}`}>
-      <div className="ai-icon">{a.type === "danger" ? "!" : a.type === "warning" ? "!" : "✓"}</div>
-      <div>
-        <div className="ai-title">{a.title}</div>
-        <div className="ai-desc">{a.desc}</div>
-        <div className="ai-project">{a.project}</div>
+    danger: alertsList.filter((a) => a.type === "danger"),
+    warning: alertsList.filter((a) => a.type === "warning"),
+    safe: alertsList.filter((a) => a.type === "safe"),
+  }), [alertsList]);
+  const renderGroup = (items: Alert[]) => items.map((a, i) => {
+    const matchingProj = projectList.find(
+      (p) => p.name.trim().toLowerCase() === a.project.trim().toLowerCase()
+    );
+    const sectionId = getSectionForAlert(a);
+
+    return (
+      <div key={i} className={`alert-item ai-${a.type}`}>
+        <div className="ai-icon">{a.type === "danger" ? "!" : a.type === "warning" ? "!" : "✓"}</div>
+        <div style={{ flex: 1 }}>
+          <div className="ai-title">{a.title}</div>
+          <div className="ai-desc">{a.desc}</div>
+          <div className="ai-project">{a.project}</div>
+          {matchingProj && (
+            <button
+              className="view-project-btn"
+              onClick={() => onNavigateToProject(matchingProj.id, sectionId)}
+              style={{
+                padding: '6px 14px',
+                borderRadius: '8px',
+                border: '1.5px solid #16a34a',
+                background: 'transparent',
+                color: '#16a34a',
+                fontSize: '13px',
+                fontWeight: 500,
+              }}
+            >
+              View Project <span className="btn-arrow">→</span>
+            </button>
+          )}
+        </div>
       </div>
-    </div>
-  ));
+    );
+  });
   return (
     <div className="screen active">
+      <style>{`
+        .view-project-btn {
+          cursor: pointer;
+          transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease, color 0.18s ease;
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+        }
+        .view-project-btn:hover {
+          transform: scale(1.05);
+          box-shadow: 0 4px 14px rgba(0,0,0,0.15);
+          background: #16a34a;
+          color: #ffffff;
+          border-color: #16a34a;
+        }
+        .view-project-btn:active {
+          transform: scale(0.97);
+        }
+        .view-project-btn:hover .btn-arrow {
+          transform: translateX(4px);
+        }
+        .btn-arrow {
+          display: inline-block;
+          transition: transform 0.18s ease;
+        }
+      `}</style>
       <div className="sh mb" style={{ marginTop: ".25rem" }}>
         <span className="sh-label">All Alerts · All Projects</span>
         <div className="sh-line"></div>
@@ -1038,23 +3579,271 @@ function AlertsScreen() {
   );
 }
 
+function ConfirmModal({
+  open,
+  title,
+  message,
+  isAlert,
+  onConfirm,
+  onCancel
+}: {
+  open: boolean;
+  title: string;
+  message: string;
+  isAlert?: boolean;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  if (!open) return null;
+
+  return (
+    <div className="dialog-backdrop" onClick={onCancel}>
+      <div className="dialog-box" onClick={(e) => e.stopPropagation()}>
+        <h4 className="dialog-title">{title}</h4>
+        <p className="dialog-message">{message}</p>
+        <div className="dialog-actions">
+          {!isAlert && (
+            <button className="dialog-btn-cancel" onClick={onCancel}>
+              Cancel
+            </button>
+          )}
+          <button 
+            className={isAlert ? "dialog-btn-ok" : "dialog-btn-confirm"} 
+            onClick={onConfirm}
+          >
+            {isAlert ? "OK" : "Confirm"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function Dashboard() {
   const [screen, setScreen] = useState<"home" | "detail" | "alerts">("home");
   const [projectId, setProjectId] = useState(0);
+  const [fromDate, setFromDate] = useState(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const savedFilter = localStorage.getItem('greenline_date_filter');
+        const initialFilter = savedFilter ? JSON.parse(savedFilter) : null;
+        if (initialFilter && initialFilter.from !== undefined) {
+          return initialFilter.from;
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    return "2025-05-01";
+  });
+  const [toDate, setToDate] = useState(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const savedFilter = localStorage.getItem('greenline_date_filter');
+        const initialFilter = savedFilter ? JSON.parse(savedFilter) : null;
+        if (initialFilter && initialFilter.to !== undefined) {
+          return initialFilter.to;
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    return "2025-05-31";
+  });
+  const [highlightedSection, setHighlightedSection] = useState<string | null>(null);
+
+  const handleNavigateToProject = (projId: number, sectionId: string | null) => {
+    setProjectId(projId);
+    setScreen("detail");
+    if (sectionId) {
+      setHighlightedSection(sectionId);
+      setTimeout(() => {
+        setHighlightedSection(null);
+      }, 2000);
+    }
+  };
+
+  const [confirmModal, setConfirmModal] = useState<{
+    open: boolean;
+    title: string;
+    message: string;
+    isAlert?: boolean;
+    onConfirm?: () => void;
+    onCancel?: () => void;
+  }>({
+    open: false,
+    title: "",
+    message: "",
+    isAlert: false
+  });
+
+  const showAlert = (title: string, message: string) => {
+    setConfirmModal({
+      open: true,
+      title,
+      message,
+      isAlert: true,
+      onConfirm: () => {
+        setConfirmModal((prev) => ({ ...prev, open: false }));
+      },
+      onCancel: () => {
+        setConfirmModal((prev) => ({ ...prev, open: false }));
+      }
+    });
+  };
+
+  const [projectList, setProjectList] = useState<Project[]>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("gl_projects");
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          return parsed.map((p: any) => {
+            const categoryBudgets = p.categoryBudgets || migrateCategoryBudgets(p.categories || []);
+            const updatedProject = {
+              ...p,
+              categoryBudgets,
+              materials: (p.materials || []).map((m: any) => updateMaterial(m)),
+            };
+            updatedProject.categoryBudgets = cleanCategoryBudgets(updatedProject);
+            return updatedProject;
+          });
+        } catch (e) {
+          console.error(e);
+        }
+      }
+    }
+    return projects.map((p) => {
+      const categoryBudgets = migrateCategoryBudgets(p.categories || []);
+      const updatedProject = {
+        ...p,
+        categoryBudgets,
+        materials: p.materials.map((m) => updateMaterial(m)),
+      };
+      updatedProject.categoryBudgets = cleanCategoryBudgets(updatedProject);
+      return updatedProject;
+    });
+  });
+
+  const [alertsList, setAlertsList] = useState<Alert[]>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("gl_alerts");
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch (e) {
+          console.error(e);
+        }
+      }
+    }
+    return allAlerts;
+  });
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("gl_projects", JSON.stringify(projectList));
+    }
+  }, [projectList]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("gl_alerts", JSON.stringify(alertsList));
+    }
+  }, [alertsList]);
 
   useEffect(() => { window.scrollTo(0, 0); }, [screen]);
 
   const open = (id: number) => { setProjectId(id); setScreen("detail"); };
+
+  const handleUpdateProject = (updatedProject: Project) => {
+    const oldProject = projectList.find((p) => p.id === updatedProject.id);
+    const oldName = oldProject ? oldProject.name : "";
+    const newName = updatedProject.name;
+
+    const cleanedProject = {
+      ...updatedProject,
+      categoryBudgets: cleanCategoryBudgets(updatedProject)
+    };
+
+    setProjectList((prev) =>
+      prev.map((p) => (p.id === updatedProject.id ? cleanedProject : p))
+    );
+
+    if (oldName && newName && oldName !== newName) {
+      setAlertsList((prev) =>
+        prev.map((a) => (a.project === oldName ? { ...a, project: newName } : a))
+      );
+    }
+  };
+
+  const handleCreateProject = (newProj: Project) => {
+    setProjectList((prev) => [...prev, newProj]);
+    setProjectId(newProj.id);
+  };
+
+  const handleDeleteProject = (deletedId: number) => {
+    if (projectList.length <= 1) {
+      showAlert("Delete Project", "You must have at least one project.");
+      return;
+    }
+    const remaining = projectList.filter((p) => p.id !== deletedId);
+    setProjectList(remaining);
+    if (remaining.length > 0) {
+      setProjectId(remaining[0].id);
+    } else {
+      setScreen("home");
+    }
+  };
 
   return (
     <>
       <style dangerouslySetInnerHTML={{ __html: STYLES }} />
       <Header screen={screen} setScreen={setScreen} />
       <main className="gl-main">
-        {screen === "home" && <HomeScreen open={open} />}
-        {screen === "detail" && <DetailScreen id={projectId} setId={setProjectId} back={() => setScreen("home")} />}
-        {screen === "alerts" && <AlertsScreen />}
+        {screen === "home" && (
+          <HomeScreen
+            open={open}
+            fromDate={fromDate}
+            toDate={toDate}
+            setFromDate={setFromDate}
+            setToDate={setToDate}
+            projectList={projectList}
+            alertsList={alertsList}
+            onNavigateToProject={handleNavigateToProject}
+          />
+        )}
+        {screen === "detail" && (
+          <DetailScreen
+            id={projectId}
+            setId={setProjectId}
+            back={() => setScreen("home")}
+            projectList={projectList}
+            onUpdateProject={handleUpdateProject}
+            onCreateProject={handleCreateProject}
+            onDeleteProject={handleDeleteProject}
+            confirmModal={confirmModal}
+            setConfirmModal={setConfirmModal}
+            highlightedSection={highlightedSection}
+          />
+        )}
+        {screen === "alerts" && (
+          <AlertsScreen
+            alertsList={alertsList}
+            projectList={projectList}
+            onNavigateToProject={handleNavigateToProject}
+          />
+        )}
       </main>
+      {confirmModal.open && (
+        <ConfirmModal
+          open={confirmModal.open}
+          title={confirmModal.title}
+          message={confirmModal.message}
+          isAlert={confirmModal.isAlert}
+          onConfirm={confirmModal.onConfirm || (() => {})}
+          onCancel={confirmModal.onCancel || (() => {})}
+        />
+      )}
     </>
   );
 }
