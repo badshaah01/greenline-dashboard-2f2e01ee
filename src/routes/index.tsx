@@ -1548,6 +1548,7 @@ function InlineEdit({
   className = "",
   style,
   inputClassName = "",
+  emptyOnZero = false,
 }: {
   value: string | number;
   onSave: (val: any) => void;
@@ -1558,13 +1559,16 @@ function InlineEdit({
   className?: string;
   style?: React.CSSProperties;
   inputClassName?: string;
+  emptyOnZero?: boolean;
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(value);
 
   useEffect(() => {
-    setEditValue(value);
-  }, [value]);
+    if (!isEditing) {
+      setEditValue(value);
+    }
+  }, [value, isEditing]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") {
@@ -1584,8 +1588,12 @@ function InlineEdit({
         finalVal = "";
       }
     } else if (isNumeric) {
-      finalVal = Number(editValue);
-      if (isNaN(finalVal)) finalVal = Number(value);
+      if (editValue === "") {
+        finalVal = 0;
+      } else {
+        finalVal = Number(editValue);
+        if (isNaN(finalVal)) finalVal = Number(value);
+      }
     }
     onSave(finalVal);
     setIsEditing(false);
@@ -1643,8 +1651,21 @@ function InlineEdit({
     return (
       <input
         type={type}
+        placeholder={isNumeric && emptyOnZero ? "0" : undefined}
         value={editValue}
-        onChange={(e) => setEditValue(e.target.value)}
+        onChange={(e) => {
+          const val = e.target.value;
+          if (isNumeric && emptyOnZero) {
+            if (val === "") {
+              setEditValue("");
+            } else {
+              const parsed = Number(val);
+              setEditValue(isNaN(parsed) ? "" : parsed);
+            }
+          } else {
+            setEditValue(val);
+          }
+        }}
         onBlur={save}
         onKeyDown={handleKeyDown}
         autoFocus
@@ -1655,7 +1676,11 @@ function InlineEdit({
     );
   }
 
-  const displayVal = formatValue ? formatValue(value) : value;
+  const displayVal = isNumeric && emptyOnZero && (value === 0 || value === "0" || value === "")
+    ? ""
+    : formatValue
+      ? formatValue(value)
+      : value;
   const isEmptyDate = type === "date" && (!value || String(value).trim() === "");
 
   return (
@@ -1664,6 +1689,11 @@ function InlineEdit({
       onClick={(e) => {
         e.stopPropagation();
         setIsEditing(true);
+        if (isNumeric && emptyOnZero && (value === 0 || value === "0")) {
+          setEditValue("");
+        } else {
+          setEditValue(value);
+        }
       }}
       style={{
         display: "inline-flex",
@@ -2932,6 +2962,7 @@ function DetailScreen({
                         value={c.budget}
                         type="number"
                         isNumeric
+                        emptyOnZero
                         formatValue={fmtFull}
                         onSave={(val) => {
                           const updatedBudgets = {
@@ -2991,6 +3022,7 @@ function DetailScreen({
                 value={totalBudget}
                 type="number"
                 isNumeric
+                emptyOnZero
                 formatValue={fmtFull}
                 onSave={(val) => {
                   onUpdateProject({
@@ -3153,6 +3185,7 @@ function DetailScreen({
                       value={s.amount}
                       type="number"
                       isNumeric
+                      emptyOnZero
                       formatValue={fmtFull}
                       onSave={(val) => handleUpdateSalary(i, "amount", Number(val))}
                       className="sal-amount"
@@ -3233,6 +3266,7 @@ function DetailScreen({
                           value={pc.amount}
                           type="number"
                           isNumeric
+                          emptyOnZero
                           formatValue={fmtFull}
                           onSave={(val) => handleUpdatePettyAmount(i, Number(val))}
                         />
