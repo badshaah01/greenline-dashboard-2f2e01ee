@@ -2073,7 +2073,7 @@ function DetailScreen({
   const [customItemName, setCustomItemName] = useState<string>("");
   const [customUnit, setCustomUnit] = useState<string>("");
   const [customUnitCost, setCustomUnitCost] = useState<number>(0);
-  const [initialDispatched, setInitialDispatched] = useState<number>(1);
+  const [initialDispatched, setInitialDispatched] = useState<number | string>("");
   const [showSuggestions, setShowSuggestions] = useState<boolean>(false);
 
   const openAddMaterialModal = () => {
@@ -2085,7 +2085,7 @@ function DetailScreen({
     setCustomItemName("");
     setCustomUnit("");
     setCustomUnitCost(0);
-    setInitialDispatched(1);
+    setInitialDispatched("");
     setShowSuggestions(false);
     setIsAddMaterialModalOpen(true);
   };
@@ -3452,9 +3452,17 @@ function DetailScreen({
                     <input
                       type="number"
                       min="0"
+                      placeholder="0"
                       className="modal-form-input"
                       value={initialDispatched}
-                      onChange={(e) => setInitialDispatched(Math.max(0, Number(e.target.value)))}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === "") {
+                          setInitialDispatched("");
+                        } else {
+                          setInitialDispatched(Math.max(0, Number(val)));
+                        }
+                      }}
                     />
                   </div>
                 </div>
@@ -3468,7 +3476,7 @@ function DetailScreen({
                 disabled={
                   categoryFilter === "All" ||
                   (!selectedItem && !isCustomItem) ||
-                  (isCustomItem && (!customItemName.trim() || !customUnit.trim() || initialDispatched < 0)) ||
+                  (isCustomItem && (!customItemName.trim() || !customUnit.trim() || Number(initialDispatched) < 0)) ||
                   (categoryFilter === "Custom" && !customCategory.trim())
                 }
                 onClick={handleAddMaterial}
