@@ -364,6 +364,7 @@ const updateMaterial = (m: any): Material => {
   const accounted = m.accounted ?? 0;
   const unitPrice = m.unitPrice ?? 0;
   const unit = m.unit || "nos";
+  const accountedVal = accounted === "" ? 0 : Number(accounted);
   
   return {
     ...m,
@@ -374,7 +375,7 @@ const updateMaterial = (m: any): Material => {
     dispatched,
     accounted,
     unitPrice,
-    gap: dispatched - accounted,
+    gap: dispatched - accountedVal,
     totalCost: dispatched * unitPrice
   };
 };
@@ -1599,10 +1600,14 @@ function InlineEdit({
       }
     } else if (isNumeric) {
       if (editValue === "") {
-        finalVal = 0;
+        finalVal = emptyOnZero ? "" : 0;
       } else {
         finalVal = Number(editValue);
-        if (isNaN(finalVal)) finalVal = Number(value);
+        if (isNaN(finalVal)) {
+          finalVal = Number(value) || (emptyOnZero ? "" : 0);
+        } else if (emptyOnZero && finalVal === 0) {
+          finalVal = "";
+        }
       }
     }
     onSave(finalVal);
@@ -1688,7 +1693,7 @@ function InlineEdit({
 
   const isNumericPlaceholder = isNumeric && emptyOnZero && (value === 0 || value === "0" || value === "");
   const displayVal = isNumericPlaceholder
-    ? "0"
+    ? ""
     : formatValue
       ? formatValue(value)
       : value;
@@ -1713,6 +1718,7 @@ function InlineEdit({
         color: isPlaceholder ? "var(--text-4)" : undefined,
         fontStyle: isPlaceholder ? "italic" : undefined,
         minWidth: isNumeric && emptyOnZero ? "24px" : undefined,
+        minHeight: isNumeric && emptyOnZero ? "20px" : undefined,
         ...style,
       }}
     >
@@ -2885,12 +2891,14 @@ function DetailScreen({
                         value={m.accounted}
                         type="number"
                         isNumeric
+                        emptyOnZero
                         formatValue={(val) => `${val} ${m.unit}`}
                         onSave={(val) => {
                           const updatedMaterials = [...p.materials];
+                          const numericVal = val === "" ? "" : Math.max(0, Number(val));
                           updatedMaterials[i] = updateMaterial({
                             ...updatedMaterials[i],
-                            accounted: Math.max(0, Number(val))
+                            accounted: numericVal === 0 ? "" : numericVal
                           });
                           onUpdateProject({
                             ...p,
