@@ -1676,12 +1676,14 @@ function InlineEdit({
     );
   }
 
-  const displayVal = isNumeric && emptyOnZero && (value === 0 || value === "0" || value === "")
-    ? ""
+  const isNumericPlaceholder = isNumeric && emptyOnZero && (value === 0 || value === "0" || value === "");
+  const displayVal = isNumericPlaceholder
+    ? "0"
     : formatValue
       ? formatValue(value)
       : value;
   const isEmptyDate = type === "date" && (!value || String(value).trim() === "");
+  const isPlaceholder = isEmptyDate || isNumericPlaceholder;
 
   return (
     <span
@@ -1698,8 +1700,9 @@ function InlineEdit({
       style={{
         display: "inline-flex",
         cursor: "pointer",
-        color: isEmptyDate ? "var(--text-4)" : undefined,
-        fontStyle: isEmptyDate ? "italic" : undefined,
+        color: isPlaceholder ? "var(--text-4)" : undefined,
+        fontStyle: isPlaceholder ? "italic" : undefined,
+        minWidth: isNumeric && emptyOnZero ? "24px" : undefined,
         ...style,
       }}
     >
