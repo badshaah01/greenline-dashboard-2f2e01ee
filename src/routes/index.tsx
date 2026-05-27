@@ -2887,26 +2887,50 @@ function DetailScreen({
                       </div>
                     </td>
                     <td className="mono">
-                      <InlineEdit
-                        value={m.accounted}
-                        type="number"
-                        isNumeric
-                        emptyOnZero
-                        formatValue={(val) => `${val} ${m.unit}`}
-                        onSave={(val) => {
-                          const updatedMaterials = [...p.materials];
-                          const numericVal = val === "" ? "" : Math.max(0, Number(val));
-                          updatedMaterials[i] = updateMaterial({
-                            ...updatedMaterials[i],
-                            accounted: numericVal === 0 ? "" : numericVal
-                          });
-                          onUpdateProject({
-                            ...p,
-                            materials: updatedMaterials
-                          });
-                        }}
-                        inputClassName="inline-edit-input"
-                      />
+                      <div style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                        <input
+                          type="number"
+                          className="inline-edit-input"
+                          style={{ width: "80px", textAlign: "right" }}
+                          value={m.accounted === "" || m.accounted === 0 ? "" : m.accounted}
+                          placeholder="0"
+                          min="0"
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            let cleanedVal = val.replace(/^0+(?=\d)/, '');
+                            if (cleanedVal !== "") {
+                              const num = Number(cleanedVal);
+                              if (isNaN(num)) cleanedVal = "";
+                            }
+                            const updatedMaterials = [...p.materials];
+                            updatedMaterials[i] = updateMaterial({
+                              ...updatedMaterials[i],
+                              accounted: cleanedVal
+                            });
+                            onUpdateProject({
+                              ...p,
+                              materials: updatedMaterials
+                            });
+                          }}
+                          onBlur={(e) => {
+                            const val = e.target.value;
+                            let cleanedVal = val.replace(/^0+(?=\d)/, '');
+                            if (cleanedVal === "0" || cleanedVal === "") {
+                              cleanedVal = "";
+                            }
+                            const updatedMaterials = [...p.materials];
+                            updatedMaterials[i] = updateMaterial({
+                              ...updatedMaterials[i],
+                              accounted: cleanedVal
+                            });
+                            onUpdateProject({
+                              ...p,
+                              materials: updatedMaterials
+                            });
+                          }}
+                        />
+                        <span style={{ fontSize: "0.85rem", color: "var(--text-3)" }}>{m.unit}</span>
+                      </div>
                     </td>
                     <td className={`mono ${gap > 0 ? (gap > 10 ? "c-red" : "c-amber") : "c-green"}`}>
                       {gap} {m.unit}
