@@ -2504,8 +2504,8 @@ function DetailScreen({
 
   const handleAddPettyCashEntry = () => {
     const newPetty: Petty = {
-      date: "New date",
-      desc: "New entry",
+      date: "",
+      desc: "",
       amount: 0,
       flag: "ok"
     };
@@ -3362,15 +3362,23 @@ function DetailScreen({
                   return (
                     <tr key={i} className="row-delete-container">
                       <td className="mono" style={{ color: "var(--text-3)" }}>
-                        <InlineEdit
+                        <input
+                          type="text"
+                          className="inline-num-input"
+                          style={{ width: "80px", textAlign: "left", fontWeight: 400 }}
                           value={pc.date}
-                          onSave={(val) => handleUpdatePetty(i, "date", val)}
+                          placeholder="Date"
+                          onChange={(e) => handleUpdatePetty(i, "date", e.target.value)}
                         />
                       </td>
                       <td>
-                        <InlineEdit
+                        <input
+                          type="text"
+                          className="inline-num-input"
+                          style={{ width: "100%", textAlign: "left", fontWeight: 400 }}
                           value={pc.desc}
-                          onSave={(val) => handleUpdatePetty(i, "desc", val)}
+                          placeholder="Description"
+                          onChange={(e) => handleUpdatePetty(i, "desc", e.target.value)}
                         />
                       </td>
                       <td className="mono" style={{ fontWeight: 600 }}>
