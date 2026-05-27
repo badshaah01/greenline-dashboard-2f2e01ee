@@ -2449,8 +2449,8 @@ function DetailScreen({
 
   const handleAddStaff = () => {
     const newSalary: Salary = {
-      name: "New Staff",
-      role: "Supervisor",
+      name: "",
+      role: "",
       amount: 0,
       month: new Date().toLocaleDateString("en-IN", { month: "short", year: "numeric" }),
       paid: false
@@ -2502,8 +2502,8 @@ function DetailScreen({
 
   const handleAddPettyCashEntry = () => {
     const newPetty: Petty = {
-      date: new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short" }),
-      desc: "New expense entry",
+      date: "",
+      desc: "",
       amount: 0,
       flag: "ok"
     };
