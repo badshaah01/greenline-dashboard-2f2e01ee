@@ -2272,7 +2272,7 @@ function DetailScreen({
   // Derive categories list dynamically
   const derivedCategories = getDynamicCategories(p);
 
-  const sumOfCategoryBudgets = Object.values(p.categoryBudgets || {}).reduce((s, b) => s + b, 0);
+  const sumOfCategoryBudgets = Object.values(p.categoryBudgets || {}).reduce((s, b) => s + (b === "" ? 0 : Number(b)), 0);
   const totalBudget = p.totalBudget !== undefined ? p.totalBudget : sumOfCategoryBudgets;
   const totalSpent = spent;
   const totalSalary = p.salary.reduce((s, e) => s + (e.amount === "" ? 0 : Number(e.amount)), 0);
@@ -2992,8 +2992,9 @@ function DetailScreen({
           <div className="card-title">Category-wise Breakdown</div>
           <div className="card-sub">Budget vs actual spend per work category</div>
           {derivedCategories.map((c, i) => {
-            const perc = c.budget > 0 ? pct(c.spent, c.budget) : 0;
-            const over = c.budget > 0 && c.spent > c.budget;
+            const budgetVal = c.budget === "" || c.budget === undefined ? 0 : Number(c.budget);
+            const perc = budgetVal > 0 ? pct(c.spent, budgetVal) : 0;
+            const over = budgetVal > 0 && c.spent > budgetVal;
             const fillClass = over ? "pf-red" : perc > 80 ? "pf-amber" : "pf-green";
 
             return (
@@ -3004,25 +3005,49 @@ function DetailScreen({
                     <span className="cat-vals">
                       <span>{fmtFull(c.spent)}</span>
                       {" / "}
-                      <InlineEdit
-                        value={c.budget}
-                        type="number"
-                        isNumeric
-                        emptyOnZero
-                        formatValue={fmtFull}
-                        onSave={(val) => {
-                          const updatedBudgets = {
-                            ...(p.categoryBudgets || {}),
-                            [c.name]: Math.max(0, Number(val))
-                          };
-                          onUpdateProject({
-                            ...p,
-                            categoryBudgets: updatedBudgets
-                          });
-                        }}
-                      />
+                      <div style={{ display: "inline-flex", alignItems: "center", gap: "2px" }}>
+                        <input
+                          type="number"
+                          className="inline-edit-input"
+                          style={{ width: "90px", textAlign: "right" }}
+                          value={c.budget === "" || c.budget === 0 ? "" : c.budget}
+                          placeholder="0"
+                          min="0"
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            let cleanedVal: string | number = val.replace(/^0+(?=\d)/, '');
+                            if (cleanedVal !== "") {
+                              const num = Number(cleanedVal);
+                              if (isNaN(num)) cleanedVal = "";
+                            }
+                            const updatedBudgets = {
+                              ...(p.categoryBudgets || {}),
+                              [c.name]: cleanedVal
+                            };
+                            onUpdateProject({
+                              ...p,
+                              categoryBudgets: updatedBudgets
+                            });
+                          }}
+                          onBlur={(e) => {
+                            const val = e.target.value;
+                            let cleanedVal = val.replace(/^0+(?=\d)/, '');
+                            if (cleanedVal === "0" || cleanedVal === "") {
+                              cleanedVal = "";
+                            }
+                            const updatedBudgets = {
+                              ...(p.categoryBudgets || {}),
+                              [c.name]: cleanedVal
+                            };
+                            onUpdateProject({
+                              ...p,
+                              categoryBudgets: updatedBudgets
+                            });
+                          }}
+                        />
+                      </div>
                     </span>
-                    {over ? <span className="over-tag">OVER ▲{fmtFull(c.spent - c.budget)}</span> : <span className="ok-tag">OK</span>}
+                    {over ? <span className="over-tag">OVER ▲{fmtFull(c.spent - budgetVal)}</span> : <span className="ok-tag">OK</span>}
                     {!DEFAULT_CATEGORIES.some(dc => dc.trim().toLowerCase() === c.name.trim().toLowerCase()) && c.name !== "Petty Cash" && (
                       <button 
                         className="row-delete-btn" 
@@ -3156,12 +3181,30 @@ function DetailScreen({
                       />
                     </td>
                     <td className="mono" style={{ fontWeight: 600 }}>
-                      <InlineEdit
-                        value={v.amount}
+                      <input
                         type="number"
-                        isNumeric
-                        formatValue={fmtFull}
-                        onSave={(val) => handleUpdateVendor(i, "amount", Number(val))}
+                        className="inline-edit-input"
+                        style={{ width: "110px", textAlign: "right" }}
+                        value={v.amount === "" || v.amount === 0 ? "" : v.amount}
+                        placeholder="0"
+                        min="0"
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          let cleanedVal: string | number = val.replace(/^0+(?=\d)/, '');
+                          if (cleanedVal !== "") {
+                            const num = Number(cleanedVal);
+                            if (isNaN(num)) cleanedVal = "";
+                          }
+                          handleUpdateVendor(i, "amount", cleanedVal);
+                        }}
+                        onBlur={(e) => {
+                          const val = e.target.value;
+                          let cleanedVal = val.replace(/^0+(?=\d)/, '');
+                          if (cleanedVal === "0" || cleanedVal === "") {
+                            cleanedVal = "";
+                          }
+                          handleUpdateVendor(i, "amount", cleanedVal);
+                        }}
                       />
                     </td>
                     <td>
