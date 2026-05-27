@@ -1698,7 +1698,9 @@ function InlineEdit({
       ? formatValue(value)
       : value;
   const isEmptyDate = type === "date" && (!value || String(value).trim() === "");
-  const isPlaceholder = isEmptyDate || isNumericPlaceholder;
+  const isValEmpty = displayVal === "" || displayVal === null || displayVal === undefined || value === "";
+  const isPlaceholder = isEmptyDate || isNumericPlaceholder || isValEmpty;
+  const displayText = isEmptyDate ? "Set date" : isValEmpty ? "Click to edit" : displayVal;
 
   return (
     <span
@@ -1722,7 +1724,7 @@ function InlineEdit({
         ...style,
       }}
     >
-      {isEmptyDate ? "Set date" : displayVal}
+      {displayText}
     </span>
   );
 }
@@ -2449,8 +2451,8 @@ function DetailScreen({
 
   const handleAddStaff = () => {
     const newSalary: Salary = {
-      name: "",
-      role: "",
+      name: "New Staff",
+      role: "New Role",
       amount: 0,
       month: new Date().toLocaleDateString("en-IN", { month: "short", year: "numeric" }),
       paid: false
@@ -2502,8 +2504,8 @@ function DetailScreen({
 
   const handleAddPettyCashEntry = () => {
     const newPetty: Petty = {
-      date: "",
-      desc: "",
+      date: "New date",
+      desc: "New entry",
       amount: 0,
       flag: "ok"
     };
