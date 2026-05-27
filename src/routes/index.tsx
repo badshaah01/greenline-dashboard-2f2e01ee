@@ -427,12 +427,22 @@ const getDynamicCategories = (p: Project) => {
     categoriesMap["Labour"].spent = totalLabourCost;
   }
 
-  return Object.values(categoriesMap).sort((a, b) => a.name.localeCompare(b.name));
+  const sortedNormalCategories = Object.values(categoriesMap).sort((a, b) => a.name.localeCompare(b.name));
+
+  const totalPettyCash = (p.pettyCash || []).reduce((sum, entry) => sum + entry.amount, 0);
+  const pettyCashCategory = {
+    name: "Petty Cash",
+    spent: totalPettyCash,
+    budget: p.categoryBudgets?.["Petty Cash"] ?? 0,
+  };
+
+  return [...sortedNormalCategories, pettyCashCategory];
 };
 
 const cleanCategoryBudgets = (p: Project): Record<string, number> => {
   const budgets: Record<string, number> = {};
   const activeCategories = new Set<string>(MASTER_CATEGORIES);
+  activeCategories.add("Petty Cash");
   
   (p.materials || []).forEach((m) => {
     activeCategories.add(m.category || "Uncategorised");
@@ -2334,6 +2344,7 @@ function DetailScreen({
   };
 
   const deleteCategory = (catKey: string) => {
+    if (catKey === "Petty Cash") return;
     console.log("deleteCategory called for category:", catKey);
 
     // 1. Remove category from MASTER_CATEGORIES
@@ -2980,7 +2991,7 @@ function DetailScreen({
                       />
                     </span>
                     {over ? <span className="over-tag">OVER ▲{fmtFull(c.spent - c.budget)}</span> : <span className="ok-tag">OK</span>}
-                    {!DEFAULT_CATEGORIES.some(dc => dc.trim().toLowerCase() === c.name.trim().toLowerCase()) && (
+                    {!DEFAULT_CATEGORIES.some(dc => dc.trim().toLowerCase() === c.name.trim().toLowerCase()) && c.name !== "Petty Cash" && (
                       <button 
                         className="row-delete-btn" 
                         onClick={(e) => {
