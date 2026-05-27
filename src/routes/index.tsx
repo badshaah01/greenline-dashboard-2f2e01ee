@@ -423,14 +423,14 @@ const getDynamicCategories = (p: Project) => {
     }
   });
 
-  const totalLabourCost = (p.salary || []).reduce((sum, s) => sum + s.amount, 0);
+  const totalLabourCost = (p.salary || []).reduce((sum, s) => sum + (s.amount === "" ? 0 : Number(s.amount)), 0);
   if (categoriesMap["Labour"]) {
     categoriesMap["Labour"].spent = totalLabourCost;
   }
 
   const sortedNormalCategories = Object.values(categoriesMap).sort((a, b) => a.name.localeCompare(b.name));
 
-  const totalPettyCash = (p.pettyCash || []).reduce((sum, entry) => sum + entry.amount, 0);
+  const totalPettyCash = (p.pettyCash || []).reduce((sum, entry) => sum + (entry.amount === "" ? 0 : Number(entry.amount)), 0);
   const pettyCashCategory = {
     name: "Petty Cash",
     spent: totalPettyCash,
@@ -2275,7 +2275,7 @@ function DetailScreen({
   const sumOfCategoryBudgets = Object.values(p.categoryBudgets || {}).reduce((s, b) => s + b, 0);
   const totalBudget = p.totalBudget !== undefined ? p.totalBudget : sumOfCategoryBudgets;
   const totalSpent = spent;
-  const totalSalary = p.salary.reduce((s, e) => s + e.amount, 0);
+  const totalSalary = p.salary.reduce((s, e) => s + (e.amount === "" ? 0 : Number(e.amount)), 0);
   const sp = p.status === "healthy" ? "sp-green" : p.status === "warning" ? "sp-amber" : "sp-red";
   const pf = p.status === "healthy" ? "pf-green" : p.status === "warning" ? "pf-amber" : "pf-red";
 
@@ -3227,15 +3227,36 @@ function DetailScreen({
               <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
                 <div className="sal-right">
                   <div style={{ display: "block" }}>
-                    <InlineEdit
-                      value={s.amount}
+                    <input
                       type="number"
-                      isNumeric
-                      emptyOnZero
-                      formatValue={fmtFull}
-                      onSave={(val) => handleUpdateSalary(i, "amount", Number(val))}
-                      className="sal-amount"
-                      style={{ display: "inline-block" }}
+                      className="inline-edit-input sal-amount"
+                      style={{ 
+                        width: "110px", 
+                        textAlign: "right",
+                        fontFamily: "var(--font-mono, monospace)",
+                        fontWeight: 600,
+                        display: "inline-block"
+                      }}
+                      value={s.amount === "" || s.amount === 0 ? "" : s.amount}
+                      placeholder="0"
+                      min="0"
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        let cleanedVal: string | number = val.replace(/^0+(?=\d)/, '');
+                        if (cleanedVal !== "") {
+                          const num = Number(cleanedVal);
+                          if (isNaN(num)) cleanedVal = "";
+                        }
+                        handleUpdateSalary(i, "amount", cleanedVal);
+                      }}
+                      onBlur={(e) => {
+                        const val = e.target.value;
+                        let cleanedVal = val.replace(/^0+(?=\d)/, '');
+                        if (cleanedVal === "0" || cleanedVal === "") {
+                          cleanedVal = "";
+                        }
+                        handleUpdateSalary(i, "amount", cleanedVal);
+                      }}
                     />
                   </div>
                   <div className="sal-date">
@@ -3308,13 +3329,30 @@ function DetailScreen({
                         />
                       </td>
                       <td className="mono" style={{ fontWeight: 600 }}>
-                        <InlineEdit
-                          value={pc.amount}
+                        <input
                           type="number"
-                          isNumeric
-                          emptyOnZero
-                          formatValue={fmtFull}
-                          onSave={(val) => handleUpdatePettyAmount(i, Number(val))}
+                          className="inline-edit-input"
+                          style={{ width: "100px", textAlign: "right" }}
+                          value={pc.amount === "" || pc.amount === 0 ? "" : pc.amount}
+                          placeholder="0"
+                          min="0"
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            let cleanedVal: string | number = val.replace(/^0+(?=\d)/, '');
+                            if (cleanedVal !== "") {
+                              const num = Number(cleanedVal);
+                              if (isNaN(num)) cleanedVal = "";
+                            }
+                            handleUpdatePettyAmount(i, cleanedVal as any);
+                          }}
+                          onBlur={(e) => {
+                            const val = e.target.value;
+                            let cleanedVal = val.replace(/^0+(?=\d)/, '');
+                            if (cleanedVal === "0" || cleanedVal === "") {
+                              cleanedVal = "";
+                            }
+                            handleUpdatePettyAmount(i, cleanedVal as any);
+                          }}
                         />
                       </td>
                       <td>
