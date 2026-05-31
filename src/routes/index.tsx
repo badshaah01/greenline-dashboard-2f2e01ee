@@ -3401,7 +3401,8 @@ function DetailScreen({
                       style={{ 
                         width: "110px", 
                         textAlign: "right",
-                        fontFamily: "var(--font-mono, monospace)",
+                        fontFamily: "'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace",
+                        fontSize: ".78rem",
                         fontWeight: 600,
                         display: "inline-block"
                       }}
