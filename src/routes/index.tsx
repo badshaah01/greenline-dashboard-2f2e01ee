@@ -2335,7 +2335,7 @@ function DetailScreen({
 
   const handleAddMilestone = () => {
     const newMilestone: Milestone = {
-      name: "New Milestone",
+      name: "",
       date: "",
       amount: 0,
       status: "upcoming"
@@ -2771,6 +2771,7 @@ function DetailScreen({
                         onSave={(val) => updateMilestone(i, "name", val)}
                         className="ms-name"
                         style={{ display: "inline-block" }}
+                        placeholder="New Milestone"
                       />
                       <InlineEdit
                         value={m.date}
