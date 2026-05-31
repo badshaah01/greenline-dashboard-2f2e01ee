@@ -2530,10 +2530,10 @@ function DetailScreen({
 
   const handleAddInvoice = () => {
     const newVendor: Vendor = {
-      name: "New Vendor",
-      invoice: `INV-${Math.floor(1000 + Math.random() * 9000)}`,
-      date: new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }),
-      due: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }),
+      name: "",
+      invoice: "",
+      date: "",
+      due: "",
       amount: 0,
       status: "due"
     };
@@ -3279,24 +3279,28 @@ function DetailScreen({
                       <InlineEdit
                         value={v.name}
                         onSave={(val) => handleUpdateVendor(i, "name", val)}
+                        placeholder="New Vendor"
                       />
                     </td>
                     <td className="mono" style={{ color: "var(--text-3)" }}>
                       <InlineEdit
                         value={v.invoice}
                         onSave={(val) => handleUpdateVendor(i, "invoice", val)}
+                        placeholder="INV-0000"
                       />
                     </td>
                     <td className="mono" style={{ color: "var(--text-2)" }}>
                       <InlineEdit
                         value={v.date}
                         onSave={(val) => handleUpdateVendor(i, "date", val)}
+                        placeholder="DD Mon YYYY"
                       />
                     </td>
                     <td className="mono" style={{ color: "var(--text-2)" }}>
                       <InlineEdit
                         value={v.due}
                         onSave={(val) => handleUpdateVendor(i, "due", val)}
+                        placeholder="DD Mon YYYY"
                       />
                     </td>
                     <td className="mono" style={{ fontWeight: 600 }}>
