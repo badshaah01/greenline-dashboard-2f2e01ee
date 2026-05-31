@@ -1560,6 +1560,7 @@ function InlineEdit({
   style,
   inputClassName = "",
   emptyOnZero = false,
+  placeholder,
 }: {
   value: string | number;
   onSave: (val: any) => void;
@@ -1571,6 +1572,7 @@ function InlineEdit({
   style?: React.CSSProperties;
   inputClassName?: string;
   emptyOnZero?: boolean;
+  placeholder?: string;
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(value);
@@ -1666,7 +1668,7 @@ function InlineEdit({
     return (
       <input
         type={type}
-        placeholder={isNumeric && emptyOnZero ? "0" : undefined}
+        placeholder={placeholder || (isNumeric && emptyOnZero ? "0" : undefined)}
         value={editValue}
         onChange={(e) => {
           const val = e.target.value;
@@ -1700,7 +1702,8 @@ function InlineEdit({
   const isEmptyDate = type === "date" && (!value || String(value).trim() === "");
   const isValEmpty = displayVal === "" || displayVal === null || displayVal === undefined || value === "";
   const isPlaceholder = isEmptyDate || isNumericPlaceholder || isValEmpty;
-  const displayText = isEmptyDate ? "Set date" : isValEmpty ? "Click to edit" : displayVal;
+  const defaultPlaceholder = isEmptyDate ? "Set date" : "Click to edit";
+  const displayText = isValEmpty ? (placeholder || defaultPlaceholder) : displayVal;
 
   return (
     <span
@@ -2772,6 +2775,7 @@ function DetailScreen({
                         onSave={(val) => updateMilestone(i, "date", val)}
                         className="ms-date"
                         style={{ display: "inline-block" }}
+                        placeholder="Add date"
                       />
                     </div>
                   </div>
