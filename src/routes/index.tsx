@@ -320,6 +320,34 @@ const DEFAULT_CATEGORIES = [
   "Uncategorised"
 ];
 
+const getGlobalMaterialsLibrary = (): Array<{ name: string; unit: string; category: string; cost: number }> => {
+  if (typeof window === "undefined") {
+    return [];
+  }
+  const stored = localStorage.getItem("greenline_materials_library");
+  if (stored) {
+    try {
+      return JSON.parse(stored);
+    } catch (e) {
+      console.error("Failed to parse library", e);
+    }
+  }
+
+  // Seed with default CATEGORY_ITEMS
+  const initialList: Array<{ name: string; unit: string; category: string; cost: number }> = [];
+  Object.entries(CATEGORY_ITEMS).forEach(([category, items]) => {
+    let cat = category;
+    if (cat === "Electrical") cat = "Electrical & Lighting";
+    if (cat === "Carpentry") cat = "Furniture & Fixtures";
+    items.forEach((item) => {
+      initialList.push({ name: item.name, unit: item.unit, category: cat, cost: item.cost });
+    });
+  });
+
+  localStorage.setItem("greenline_materials_library", JSON.stringify(initialList));
+  return initialList;
+};
+
 let MASTER_CATEGORIES = [...DEFAULT_CATEGORIES];
 
 if (typeof window !== "undefined") {
@@ -2126,6 +2154,7 @@ function DetailScreen({
   highlightedSection: string | null;
 }) {
   const [isAddMaterialModalOpen, setIsAddMaterialModalOpen] = useState(false);
+  const [libraryItems, setLibraryItems] = useState(() => getGlobalMaterialsLibrary());
   const [contextMenu, setContextMenu] = useState<{
     x: number;
     y: number;
@@ -2173,27 +2202,58 @@ function DetailScreen({
     setIsAddMaterialModalOpen(true);
   };
 
-  const allSearchableItems = useMemo(() => {
-    const list: Array<{ name: string; unit: string; cost: number; category: string }> = [];
-    Object.entries(CATEGORY_ITEMS).forEach(([category, items]) => {
-      items.forEach((item) => {
-        list.push({ ...item, category });
+  const suggestionsList = useMemo(() => {
+    const list: Array<{ name: string; unit: string; cost: number; category: string; alreadyInProject: boolean }> = [];
+    const seen = new Set<string>();
+
+    const p = projectList.find((pp) => pp.id === id) || projectList[0];
+
+    // 1. Add all library items
+    libraryItems.forEach((item) => {
+      const key = item.name.trim().toLowerCase();
+      seen.add(key);
+      const inProject = (p.materials || []).some(
+        (m) => m.name.trim().toLowerCase() === key
+      );
+      list.push({
+        name: item.name,
+        unit: item.unit,
+        cost: item.cost ?? 0,
+        category: item.category || "Uncategorised",
+        alreadyInProject: inProject,
       });
     });
+
+    // 2. Add currently-added project materials if not already in the library list
+    (p.materials || []).forEach((m) => {
+      const key = m.name.trim().toLowerCase();
+      if (seen.has(key)) {
+        return;
+      }
+      seen.add(key);
+      list.push({
+        name: m.name,
+        unit: m.unit,
+        cost: m.unitCost ?? 0,
+        category: m.category || "Uncategorised",
+        alreadyInProject: true,
+      });
+    });
+
     return list;
-  }, []);
+  }, [libraryItems, projectList, id]);
 
   const filteredItems = useMemo(() => {
-    let items = allSearchableItems;
+    let items = suggestionsList;
     if (categoryFilter !== "All" && categoryFilter !== "Custom") {
-      items = items.filter(it => it.category === categoryFilter);
+      items = items.filter(it => it.category.toLowerCase() === categoryFilter.toLowerCase());
     }
     if (!searchQuery.trim()) return items;
     const q = searchQuery.toLowerCase();
     return items.filter(it => it.name.toLowerCase().includes(q));
-  }, [allSearchableItems, searchQuery, categoryFilter]);
+  }, [suggestionsList, searchQuery, categoryFilter]);
 
-  const handleSelectSuggestion = (item: { name: string; unit: string; cost: number; category: string }) => {
+  const handleSelectSuggestion = (item: { name: string; unit: string; cost: number; category: string; alreadyInProject?: boolean }) => {
     setSelectedItem(item);
     setIsCustomItem(false);
     setSearchQuery(item.name);
@@ -2293,6 +2353,28 @@ function DetailScreen({
       ...p,
       materials: updatedMaterials
     });
+
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("greenline_materials_library");
+      let lib: Array<{ name: string; unit: string; category: string; cost: number }> = [];
+      if (stored) {
+        try {
+          lib = JSON.parse(stored);
+        } catch (e) {}
+      }
+      const exists = lib.some((item) => item.name.trim().toLowerCase() === name.trim().toLowerCase());
+      if (!exists) {
+        const newItem = {
+          name: name.trim(),
+          unit: unit || "nos",
+          category: category || "Uncategorised",
+          cost: cost || 0
+        };
+        const updatedLib = [...lib, newItem];
+        localStorage.setItem("greenline_materials_library", JSON.stringify(updatedLib));
+        setLibraryItems(updatedLib);
+      }
+    }
 
     setIsAddMaterialModalOpen(false);
   };
@@ -3510,8 +3592,27 @@ function DetailScreen({
                         key={`${item.category}-${item.name}`}
                         className="autocomplete-suggestion-item"
                         onMouseDown={() => handleSelectSuggestion(item)}
+                        style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}
                       >
-                        <span className="autocomplete-suggestion-name">{item.name}</span>
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                          <span className="autocomplete-suggestion-name">{item.name}</span>
+                          {item.alreadyInProject && (
+                            <span
+                              style={{
+                                fontSize: "0.6rem",
+                                fontWeight: 600,
+                                background: "var(--amber-soft)",
+                                color: "var(--amber)",
+                                border: "1px solid var(--amber-line)",
+                                padding: "2px 6px",
+                                borderRadius: "4px",
+                                display: "inline-block",
+                              }}
+                            >
+                              Already in project
+                            </span>
+                          )}
+                        </div>
                         <span className="autocomplete-suggestion-category">{item.category}</span>
                       </div>
                     ))}
