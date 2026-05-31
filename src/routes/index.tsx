@@ -2559,11 +2559,13 @@ function DetailScreen({
               <InlineEdit
                 value={p.client}
                 onSave={(val) => onUpdateProject({ ...p, client: val })}
+                placeholder="Company name"
               />
               <span>·</span>
               <InlineEdit
                 value={p.location}
                 onSave={(val) => onUpdateProject({ ...p, location: val })}
+                placeholder="Location"
               />
             </div>
             <div style={{ display: "flex", gap: ".4rem", marginTop: ".75rem", flexWrap: "wrap", alignItems: "center" }}>
