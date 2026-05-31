@@ -21,7 +21,7 @@ export const Route = createFileRoute("/")({
 });
 
 // ─── DATA ──────────────────────────────────────────────
-type Milestone = { name: string; amount: number; date: string; status: "done" | "overdue" | "upcoming" };
+type Milestone = { name: string; amount: number | ""; date: string; status: "done" | "overdue" | "upcoming" };
 type Category = { name: string; budget: number; spent: number };
 type Material = { id: string; name: string; unit: string; dispatched: number; accounted: number; vendor?: string; unitCost?: number; unitPrice?: number; gap?: number; totalCost?: number; category?: string };
 type Vendor = { name: string; invoice: string; date: string; due: string; amount: number; status: "paid" | "due" | "overdue" };
@@ -460,7 +460,7 @@ const cleanCategoryBudgets = (p: Project): Record<string, number> => {
 const getProjectReceived = (p: Project): number => {
   return p.milestones
     .filter((m) => m.status === "done")
-    .reduce((sum, m) => sum + m.amount, 0);
+    .reduce((sum, m) => sum + (m.amount === "" ? 0 : Number(m.amount)), 0);
 };
 
 const getProjectSpent = (p: Project): number => {
@@ -2337,7 +2337,7 @@ function DetailScreen({
     const newMilestone: Milestone = {
       name: "",
       date: "",
-      amount: 0,
+      amount: "",
       status: "upcoming"
     };
     onUpdateProject({
@@ -2787,8 +2787,10 @@ function DetailScreen({
                       value={m.amount}
                       type="number"
                       isNumeric
+                      emptyOnZero
+                      placeholder="0"
                       formatValue={fmtFull}
-                      onSave={(val) => updateMilestone(i, "amount", Number(val))}
+                      onSave={(val) => updateMilestone(i, "amount", val)}
                       className={`ms-amount ${amtColor}`}
                       style={{ display: "inline-block" }}
                     />
@@ -2829,7 +2831,7 @@ function DetailScreen({
           <div style={{ marginTop: ".5rem" }}>
             {(["done", "overdue", "upcoming"] as const).map((s) => {
               const items = p.milestones.filter((m) => m.status === s);
-              const total = items.reduce((a, m) => a + m.amount, 0);
+              const total = items.reduce((a, m) => a + (m.amount === "" ? 0 : Number(m.amount)), 0);
               const label = s === "done" ? "Collected" : s === "overdue" ? "Overdue" : "Upcoming";
               const col = s === "done" ? "c-green" : s === "overdue" ? "c-red" : "";
               return (
