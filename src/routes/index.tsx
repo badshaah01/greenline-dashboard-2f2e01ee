@@ -1545,6 +1545,24 @@ tr:hover .qty-controls {
     background-color: transparent;
   }
 }
+.context-menu-item {
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  color: var(--red);
+  padding: 8px 12px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: background 0.15s;
+}
+.context-menu-item:hover {
+  background: var(--red-soft);
+}
 `;
 
 
@@ -2108,6 +2126,17 @@ function DetailScreen({
   highlightedSection: string | null;
 }) {
   const [isAddMaterialModalOpen, setIsAddMaterialModalOpen] = useState(false);
+  const [contextMenu, setContextMenu] = useState<{
+    x: number;
+    y: number;
+    categoryName: string;
+  } | null>(null);
+
+  useEffect(() => {
+    const handleCloseMenu = () => setContextMenu(null);
+    window.addEventListener("click", handleCloseMenu);
+    return () => window.removeEventListener("click", handleCloseMenu);
+  }, []);
 
   useEffect(() => {
     if (highlightedSection) {
@@ -3009,82 +3038,79 @@ function DetailScreen({
             const fillClass = over ? "pf-red" : perc > 80 ? "pf-amber" : "pf-green";
 
             return (
-              <div className="cat-row row-delete-container" key={i}>
-                <div className="cat-meta">
-                  <span className="cat-name">{c.name}</span>
-                  <div className="cat-right">
-                    <span className="cat-vals">
-                      <span>{fmtFull(c.spent)}</span>
-                      {" / "}
-                      <div style={{ display: "inline-flex", alignItems: "center", gap: "2px" }}>
-                        <input
-                          type="number"
-                          className="inline-edit-input"
-                          style={{ width: "90px", textAlign: "right" }}
-                          value={c.budget === "" || c.budget === 0 ? "" : c.budget}
-                          placeholder="0"
-                          min="0"
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            let cleanedVal: string | number = val.replace(/^0+(?=\d)/, '');
-                            if (cleanedVal !== "") {
-                              const num = Number(cleanedVal);
-                              if (isNaN(num)) cleanedVal = "";
-                            }
-                            const updatedBudgets = {
-                              ...(p.categoryBudgets || {}),
-                              [c.name]: cleanedVal
-                            };
-                            onUpdateProject({
-                              ...p,
-                              categoryBudgets: updatedBudgets
-                            });
-                          }}
-                          onBlur={(e) => {
-                            const val = e.target.value;
-                            let cleanedVal = val.replace(/^0+(?=\d)/, '');
-                            if (cleanedVal === "0" || cleanedVal === "") {
-                              cleanedVal = "";
-                            }
-                            const updatedBudgets = {
-                              ...(p.categoryBudgets || {}),
-                              [c.name]: cleanedVal
-                            };
-                            onUpdateProject({
-                              ...p,
-                              categoryBudgets: updatedBudgets
-                            });
-                          }}
-                        />
-                      </div>
-                    </span>
+              <div className="cat-row" key={i}>
+                <div className="cat-meta" style={{ display: "grid", gridTemplateColumns: "1fr 100px 15px 100px 140px", alignItems: "center", gap: "8px" }}>
+                  <span
+                    className="cat-name"
+                    onContextMenu={(e) => {
+                      const isDefault = DEFAULT_CATEGORIES.some(dc => dc.trim().toLowerCase() === c.name.trim().toLowerCase()) || c.name === "Petty Cash";
+                      if (!isDefault) {
+                        e.preventDefault();
+                        setContextMenu({
+                          x: e.clientX,
+                          y: e.clientY,
+                          categoryName: c.name
+                        });
+                      }
+                    }}
+                    style={{
+                      cursor: !DEFAULT_CATEGORIES.some(dc => dc.trim().toLowerCase() === c.name.trim().toLowerCase()) && c.name !== "Petty Cash" ? "context-menu" : "default"
+                    }}
+                    title={!DEFAULT_CATEGORIES.some(dc => dc.trim().toLowerCase() === c.name.trim().toLowerCase()) && c.name !== "Petty Cash" ? "Right-click to delete category" : undefined}
+                  >
+                    {c.name}
+                  </span>
+                  
+                  <span style={{ textAlign: "right", fontFamily: "'JetBrains Mono', monospace", fontSize: ".68rem", color: "var(--text-3)", fontVariantNumeric: "tabular-nums" }}>
+                    {fmtFull(c.spent)}
+                  </span>
+                  
+                  <span style={{ textAlign: "center", color: "var(--text-4)" }}>/</span>
+                  
+                  <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                    <input
+                      type="number"
+                      className="inline-edit-input"
+                      style={{ width: "90px", textAlign: "right" }}
+                      value={c.budget === "" || c.budget === 0 ? "" : c.budget}
+                      placeholder="0"
+                      min="0"
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        let cleanedVal: string | number = val.replace(/^0+(?=\d)/, '');
+                        if (cleanedVal !== "") {
+                          const num = Number(cleanedVal);
+                          if (isNaN(num)) cleanedVal = "";
+                        }
+                        const updatedBudgets = {
+                          ...(p.categoryBudgets || {}),
+                          [c.name]: cleanedVal
+                        };
+                        onUpdateProject({
+                          ...p,
+                          categoryBudgets: updatedBudgets
+                        });
+                      }}
+                      onBlur={(e) => {
+                        const val = e.target.value;
+                        let cleanedVal = val.replace(/^0+(?=\d)/, '');
+                        if (cleanedVal === "0" || cleanedVal === "") {
+                          cleanedVal = "";
+                        }
+                        const updatedBudgets = {
+                          ...(p.categoryBudgets || {}),
+                          [c.name]: cleanedVal
+                        };
+                        onUpdateProject({
+                          ...p,
+                          categoryBudgets: updatedBudgets
+                        });
+                      }}
+                    />
+                  </div>
+                  
+                  <div style={{ display: "flex", justifyContent: "flex-end" }}>
                     {over ? <span className="over-tag">OVER ▲{fmtFull(c.spent - budgetVal)}</span> : <span className="ok-tag">OK</span>}
-                    {!DEFAULT_CATEGORIES.some(dc => dc.trim().toLowerCase() === c.name.trim().toLowerCase()) && c.name !== "Petty Cash" && (
-                      <button 
-                        className="row-delete-btn" 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          const materialCount = (p.materials || []).filter(m => (m.category || "").trim().toLowerCase() === c.name.trim().toLowerCase()).length;
-                          setConfirmModal({
-                            open: true,
-                            title: "Delete Category",
-                            message: `Deleting this category will also remove ${materialCount} material item(s) under it in Section C. This cannot be undone. Confirm?`,
-                            isAlert: false,
-                            onConfirm: () => {
-                              deleteCategory(c.name);
-                              setConfirmModal((prev) => ({ ...prev, open: false }));
-                            },
-                            onCancel: () => {
-                              setConfirmModal((prev) => ({ ...prev, open: false }));
-                            }
-                          });
-                        }}
-                        title="Delete Category"
-                        style={{ fontSize: "1.1rem", marginLeft: "4px" }}
-                      >
-                        ×
-                      </button>
-                    )}
                   </div>
                 </div>
                 <div className="prog-track">
@@ -3665,6 +3691,50 @@ function DetailScreen({
               </button>
             </div>
           </div>
+        </div>
+      )}
+      {contextMenu && (
+        <div
+          style={{
+            position: "fixed",
+            top: contextMenu.y,
+            left: contextMenu.x,
+            background: "var(--surface)",
+            border: "1px solid var(--border)",
+            borderRadius: "6px",
+            boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
+            padding: "4px 0",
+            zIndex: 9999,
+            minWidth: "140px",
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            onClick={() => {
+              const materialCount = (p.materials || []).filter(
+                (m) =>
+                  (m.category || "").trim().toLowerCase() ===
+                  contextMenu.categoryName.trim().toLowerCase()
+              ).length;
+              setConfirmModal({
+                open: true,
+                title: "Delete Category",
+                message: `Deleting this category will also remove ${materialCount} material item(s) under it in Section C. This cannot be undone. Confirm?`,
+                isAlert: false,
+                onConfirm: () => {
+                  deleteCategory(contextMenu.categoryName);
+                  setConfirmModal((prev) => ({ ...prev, open: false }));
+                },
+                onCancel: () => {
+                  setConfirmModal((prev) => ({ ...prev, open: false }));
+                },
+              });
+              setContextMenu(null);
+            }}
+            className="context-menu-item"
+          >
+            🗑 Delete category
+          </button>
         </div>
       )}
     </div>
