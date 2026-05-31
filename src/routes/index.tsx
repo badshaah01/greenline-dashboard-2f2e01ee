@@ -2565,10 +2565,10 @@ function DetailScreen({
 
   const handleAddStaff = () => {
     const newSalary: Salary = {
-      name: "New Staff",
-      role: "New Role",
+      name: "",
+      role: "",
       amount: 0,
-      month: new Date().toLocaleDateString("en-IN", { month: "short", year: "numeric" }),
+      month: "",
       paid: false
     };
     onUpdateProject({
@@ -3379,6 +3379,7 @@ function DetailScreen({
                     onSave={(val) => handleUpdateSalary(i, "name", val)}
                     className="sal-name"
                     style={{ display: "inline-block" }}
+                    placeholder="Staff name"
                   />
                 </div>
                 <div style={{ display: "block" }}>
@@ -3387,6 +3388,7 @@ function DetailScreen({
                     onSave={(val) => handleUpdateSalary(i, "role", val)}
                     className="sal-role"
                     style={{ display: "inline-block" }}
+                    placeholder="Role"
                   />
                 </div>
               </div>
@@ -3430,6 +3432,7 @@ function DetailScreen({
                       value={s.month}
                       onSave={(val) => handleUpdateSalary(i, "month", val)}
                       style={{ display: "inline-block" }}
+                      placeholder="Date"
                     />
                     {" · "}
                     <InlineEdit
