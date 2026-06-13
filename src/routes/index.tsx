@@ -4078,56 +4078,62 @@ function AlertsScreen({
         <div>
           <div className="sh mb"><span className="sh-label" style={{ color: "var(--amber)" }}>Watch Closely</span><div className="sh-line"></div></div>
           {renderGroup(groups.warning)}
-          <div className="sh mb" style={{ marginTop: "1.5rem" }}><span className="sh-label" style={{ color: "var(--green)" }}>All Clear</span><div className="sh-line"></div></div>
-          {renderGroup(groups.safe)}
         </div>
       </div>
       {overdueRetentions.length > 0 && (
-        <div style={{ marginTop: "2rem" }}>
+        <div style={{ marginTop: "1.5rem" }}>
           <div className="sh mb">
             <span className="sh-label" style={{ color: "var(--red)" }}>Retention Overdue</span>
             <div className="sh-line"></div>
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-            {overdueRetentions.map((item, idx) => (
-              <div key={idx} className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <div style={{ flex: 1 }}>
-                  <div className="mb-2">
-                    <span className="text-red-700 bg-red-50 border border-red-200 px-2 py-0.5 rounded text-xs font-semibold inline-block">
-                      RETENTION OVERDUE
-                    </span>
-                  </div>
-                  <div className="text-base text-gray-900 mb-1">
-                    <strong>{item.projectName}</strong> — {item.milestone.name}
-                  </div>
-                  <div className="text-red-600 text-sm mb-1">
-                    Due: {item.formattedDate} · {item.daysOverdue} days overdue
-                  </div>
-                  {item.milestone.amount !== undefined && item.milestone.amount !== null && item.milestone.amount !== "" && (
-                    <div className="text-gray-700 text-sm">
-                      {fmtFull(Number(item.milestone.amount))}
-                    </div>
-                  )}
-                </div>
-                <div className="flex-shrink-0">
-                  <button
-                    className="view-project-btn"
-                    onClick={() => onNavigateToProject(item.projectId, "section-b")}
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.55rem" }}>
+            {overdueRetentions.map((item, idx) => {
+              const amountVal = item.milestone.amount !== undefined && item.milestone.amount !== null && item.milestone.amount !== "" ? Number(item.milestone.amount) : 0;
+              return (
+                <div key={idx} className="bg-white rounded-lg border border-gray-200 p-4 border-l-4 border-l-red-500 flex items-start gap-[10px]">
+                  <div 
+                    className="flex items-center justify-center flex-shrink-0 text-white font-bold" 
                     style={{
-                      padding: '6px 14px',
-                      borderRadius: '8px',
-                      border: '1.5px solid #16a34a',
-                      background: 'transparent',
-                      color: '#16a34a',
-                      fontSize: '13px',
-                      fontWeight: 500,
+                      width: '22px',
+                      height: '22px',
+                      borderRadius: '50%',
+                      fontSize: '.66rem',
+                      backgroundColor: 'var(--red)',
+                      marginTop: '1px'
                     }}
                   >
-                    View Project <span className="btn-arrow">→</span>
-                  </button>
+                    !
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div className="text-sm font-semibold text-gray-900 mb-1">
+                      Retention Overdue — {item.milestone.name}
+                    </div>
+                    <div className="text-sm text-gray-500 mb-1">
+                      Due {item.formattedDate} · {item.daysOverdue} days overdue · {fmtFull(amountVal)} pending release
+                    </div>
+                    <div className="text-xs text-gray-400 font-mono">
+                      {item.projectName}
+                    </div>
+                    <button
+                      className="view-project-btn"
+                      onClick={() => onNavigateToProject(item.projectId, "section-b")}
+                      style={{
+                        padding: '6px 14px',
+                        borderRadius: '8px',
+                        border: '1.5px solid #16a34a',
+                        background: 'transparent',
+                        color: '#16a34a',
+                        fontSize: '13px',
+                        fontWeight: 500,
+                        marginTop: '8px',
+                      }}
+                    >
+                      View Project <span className="btn-arrow">→</span>
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
