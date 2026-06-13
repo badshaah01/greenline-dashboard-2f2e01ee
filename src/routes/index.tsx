@@ -2831,64 +2831,6 @@ function DetailScreen({
                 style={{ fontSize: ".82rem", fontWeight: 500 }}
               />
             </div>
-            <div style={{ display: "flex", alignItems: "center" }}>
-              <button
-                className="delete-proj-btn"
-                onClick={() => {
-                  if (projectList.length <= 1) {
-                    setConfirmModal({
-                      open: true,
-                      title: "Delete Project",
-                      message: "You must have at least one project.",
-                      isAlert: true,
-                      onConfirm: () => {
-                        setConfirmModal((prev) => ({ ...prev, open: false }));
-                      },
-                      onCancel: () => {
-                        setConfirmModal((prev) => ({ ...prev, open: false }));
-                      }
-                    });
-                    return;
-                  }
-                  setConfirmModal({
-                    open: true,
-                    title: "Delete Project",
-                    message: `Are you sure you want to delete '${p.name}'? This cannot be undone.`,
-                    isAlert: false,
-                    onConfirm: () => {
-                      onDeleteProject(p.id);
-                      setConfirmModal((prev) => ({ ...prev, open: false }));
-                    },
-                    onCancel: () => {
-                      setConfirmModal((prev) => ({ ...prev, open: false }));
-                    }
-                  });
-                }}
-                style={{
-                  background: "var(--red-soft)",
-                  border: "1px solid var(--red-line)",
-                  color: "var(--red)",
-                  padding: "0.35rem 0.65rem",
-                  borderRadius: "6px",
-                  fontSize: "0.76rem",
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "4px",
-                  transition: "all 0.15s ease",
-                  marginTop: "0.2rem"
-                }}
-                onMouseOver={(e) => {
-                  e.currentTarget.style.background = "#fee2e2";
-                }}
-                onMouseOut={(e) => {
-                  e.currentTarget.style.background = "var(--red-soft)";
-                }}
-              >
-                🗑 Delete Project
-              </button>
-            </div>
           </div>
         </div>
         <div className="mini-prog" style={{ marginTop: "1.1rem" }}>
@@ -3660,6 +3602,44 @@ function DetailScreen({
             </button>
           </div>
         </div>
+      </div>
+
+      <div className="flex justify-end mt-8 mb-4">
+        <button
+          onClick={() => {
+            if (projectList.length <= 1) {
+              setConfirmModal({
+                open: true,
+                title: "Delete Project",
+                message: "You must have at least one project.",
+                isAlert: true,
+                onConfirm: () => {
+                  setConfirmModal((prev) => ({ ...prev, open: false }));
+                },
+                onCancel: () => {
+                  setConfirmModal((prev) => ({ ...prev, open: false }));
+                }
+              });
+              return;
+            }
+            setConfirmModal({
+              open: true,
+              title: "Delete Project",
+              message: `Are you sure you want to delete '${p.name}'? This cannot be undone.`,
+              isAlert: false,
+              onConfirm: () => {
+                onDeleteProject(p.id);
+                setConfirmModal((prev) => ({ ...prev, open: false }));
+              },
+              onCancel: () => {
+                setConfirmModal((prev) => ({ ...prev, open: false }));
+              }
+            });
+          }}
+          className="flex items-center gap-2 px-4 py-2 bg-red-50 border border-red-300 text-red-600 rounded-lg hover:bg-red-100 transition-colors text-sm font-medium"
+        >
+          🗑 Delete Project
+        </button>
       </div>
 
       {isAddMaterialModalOpen && (
