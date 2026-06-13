@@ -4090,28 +4090,16 @@ function AlertsScreen({
             {overdueRetentions.map((item, idx) => {
               const amountVal = item.milestone.amount !== undefined && item.milestone.amount !== null && item.milestone.amount !== "" ? Number(item.milestone.amount) : 0;
               return (
-                <div key={idx} className="bg-white rounded-lg border border-gray-200 p-4 border-l-4 border-l-red-500 flex items-start gap-[10px]">
-                  <div 
-                    className="flex items-center justify-center flex-shrink-0 text-white font-bold" 
-                    style={{
-                      width: '22px',
-                      height: '22px',
-                      borderRadius: '50%',
-                      fontSize: '.66rem',
-                      backgroundColor: 'var(--red)',
-                      marginTop: '1px'
-                    }}
-                  >
-                    !
-                  </div>
+                <div key={idx} className="alert-item ai-danger">
+                  <div className="ai-icon">!</div>
                   <div style={{ flex: 1 }}>
-                    <div className="text-sm font-semibold text-gray-900 mb-1">
+                    <div className="ai-title">
                       Retention Overdue — {item.milestone.name}
                     </div>
-                    <div className="text-sm text-gray-500 mb-1">
+                    <div className="ai-desc">
                       Due {item.formattedDate} · {item.daysOverdue} days overdue · {fmtFull(amountVal)} pending release
                     </div>
-                    <div className="text-xs text-gray-400 font-mono">
+                    <div className="ai-project">
                       {item.projectName}
                     </div>
                     <button
