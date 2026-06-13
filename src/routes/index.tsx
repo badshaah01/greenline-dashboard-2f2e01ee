@@ -3604,7 +3604,16 @@ function DetailScreen({
         </div>
       </div>
 
-      <div className="flex justify-end mt-8 mb-4">
+      <div className="flex items-center justify-between mt-8 mb-4 px-4 py-3 bg-red-50 border border-red-200 rounded-lg">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0">
+            <span className="text-red-600 text-sm font-bold">⚠</span>
+          </div>
+          <div style={{ textAlign: "left" }}>
+            <p className="text-red-700 font-semibold text-sm" style={{ margin: 0 }}>Danger Zone</p>
+            <p className="text-red-500 text-xs" style={{ margin: 0 }}>Deleting this project is permanent and cannot be undone. All data will be lost.</p>
+          </div>
+        </div>
         <button
           onClick={() => {
             if (projectList.length <= 1) {
@@ -3636,7 +3645,7 @@ function DetailScreen({
               }
             });
           }}
-          className="flex items-center gap-2 px-4 py-2 bg-red-50 border border-red-300 text-red-600 rounded-lg hover:bg-red-100 transition-colors text-sm font-medium"
+          className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium whitespace-nowrap ml-6"
         >
           🗑 Delete Project
         </button>
