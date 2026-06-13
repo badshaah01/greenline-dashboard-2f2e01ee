@@ -3962,6 +3962,48 @@ function AlertsScreen({
     warning: alertsList.filter((a) => a.type === "warning"),
     safe: alertsList.filter((a) => a.type === "safe"),
   }), [alertsList]);
+
+  const overdueRetentions = useMemo(() => {
+    const list: Array<{
+      projectId: number;
+      projectName: string;
+      milestone: Milestone;
+      formattedDate: string;
+      daysOverdue: number;
+    }> = [];
+
+    const parseMilestoneDate = (dateStr: string): Date | null => {
+      if (!dateStr || dateStr.trim() === "") return null;
+      const d = new Date(dateStr);
+      if (!isNaN(d.getTime())) return d;
+      return parseAnyDateForDisplay(dateStr);
+    };
+
+    projectList.forEach((p) => {
+      (p.milestones || []).forEach((m) => {
+        const nameMatches = m.name.toLowerCase().includes("retention");
+        const statusMatches = m.status !== "Paid" && m.status !== "Released" && m.status !== "done";
+        if (nameMatches && statusMatches && m.date) {
+          const mDate = parseMilestoneDate(m.date);
+          if (mDate) {
+            const today = new Date();
+            if (today.getTime() > mDate.getTime()) {
+              const daysOverdue = Math.floor((Date.now() - mDate.getTime()) / (1000 * 60 * 60 * 24));
+              list.push({
+                projectId: p.id,
+                projectName: p.name,
+                milestone: m,
+                formattedDate: formatProjectDate(m.date),
+                daysOverdue
+              });
+            }
+          }
+        }
+      });
+    });
+
+    return list;
+  }, [projectList]);
   const renderGroup = (items: Alert[]) => items.map((a, i) => {
     const matchingProj = projectList.find(
       (p) => p.name.trim().toLowerCase() === a.project.trim().toLowerCase()
@@ -4040,6 +4082,55 @@ function AlertsScreen({
           {renderGroup(groups.safe)}
         </div>
       </div>
+      {overdueRetentions.length > 0 && (
+        <div style={{ marginTop: "2rem" }}>
+          <div className="sh mb">
+            <span className="sh-label" style={{ color: "var(--red)" }}>Retention Overdue</span>
+            <div className="sh-line"></div>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+            {overdueRetentions.map((item, idx) => (
+              <div key={idx} className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div style={{ flex: 1 }}>
+                  <div className="mb-2">
+                    <span className="text-red-700 bg-red-50 border border-red-200 px-2 py-0.5 rounded text-xs font-semibold inline-block">
+                      RETENTION OVERDUE
+                    </span>
+                  </div>
+                  <div className="text-base text-gray-900 mb-1">
+                    <strong>{item.projectName}</strong> — {item.milestone.name}
+                  </div>
+                  <div className="text-red-600 text-sm mb-1">
+                    Due: {item.formattedDate} · {item.daysOverdue} days overdue
+                  </div>
+                  {item.milestone.amount !== undefined && item.milestone.amount !== null && item.milestone.amount !== "" && (
+                    <div className="text-gray-700 text-sm">
+                      {fmtFull(Number(item.milestone.amount))}
+                    </div>
+                  )}
+                </div>
+                <div className="flex-shrink-0">
+                  <button
+                    className="view-project-btn"
+                    onClick={() => onNavigateToProject(item.projectId, "section-b")}
+                    style={{
+                      padding: '6px 14px',
+                      borderRadius: '8px',
+                      border: '1.5px solid #16a34a',
+                      background: 'transparent',
+                      color: '#16a34a',
+                      fontSize: '13px',
+                      fontWeight: 500,
+                    }}
+                  >
+                    View Project <span className="btn-arrow">→</span>
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
