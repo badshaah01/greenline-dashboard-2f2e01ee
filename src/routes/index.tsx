@@ -2747,29 +2747,6 @@ function DetailScreen({
                 placeholder="Location"
               />
             </div>
-            <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-              {poFile ? (
-                <span className="text-xs text-green-700 bg-green-50 border border-green-200 rounded px-2 py-1 inline-flex items-center">
-                  <span className="cursor-pointer" onClick={handleOpenPO}>📄 {poFile.name}</span>
-                  <span className="ml-2 text-gray-400 hover:text-red-500 cursor-pointer text-xs" onClick={handleRemovePO}>✕</span>
-                </span>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => poInputRef.current?.click()}
-                  className="text-xs text-gray-400 border border-dashed border-gray-300 rounded px-2 py-1 hover:border-green-400 hover:text-green-500 cursor-pointer transition-colors"
-                >
-                  📎 Attach PO PDF
-                </button>
-              )}
-              <input
-                type="file"
-                ref={poInputRef}
-                accept="application/pdf"
-                style={{ display: "none" }}
-                onChange={handleAttachPO}
-              />
-            </div>
             <div style={{ display: "flex", gap: ".4rem", marginTop: ".75rem", flexWrap: "wrap", alignItems: "center" }}>
               <InlineEdit
                 value={p.status}
@@ -2801,7 +2778,37 @@ function DetailScreen({
               />
             </div>
           </div>
-          <div style={{ display: "flex", gap: "2rem", flexWrap: "wrap", alignItems: "center" }}>
+          <div style={{ display: "flex", gap: "2rem", flexWrap: "wrap", alignItems: "flex-start" }}>
+            <div style={{ textAlign: "right" }}>
+              <div className="stat-lbl text-xs text-gray-400 uppercase tracking-wider">PO DOCUMENT</div>
+              <div>
+                {poFile ? (
+                  <span className="text-xs text-green-700 bg-green-50 border border-green-200 rounded px-2 py-1 inline-flex items-center">
+                    <span className="cursor-pointer inline-flex items-center" onClick={handleOpenPO}>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" className="inline-block mr-1 flex-shrink-0"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/><line x1="9" y1="9" x2="11" y2="9"/></svg>
+                      {poFile.name}
+                    </span>
+                    <span className="ml-2 text-gray-400 hover:text-red-500 cursor-pointer text-xs" onClick={handleRemovePO}>✕</span>
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => poInputRef.current?.click()}
+                    className="text-xs text-gray-400 border border-dashed border-gray-300 rounded px-2 py-1 hover:border-green-400 hover:text-green-500 cursor-pointer transition-colors inline-flex items-center"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" className="inline-block mr-1 flex-shrink-0"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>
+                    Attach PO PDF
+                  </button>
+                )}
+                <input
+                  type="file"
+                  ref={poInputRef}
+                  accept="application/pdf"
+                  style={{ display: "none" }}
+                  onChange={handleAttachPO}
+                />
+              </div>
+            </div>
             <div style={{ textAlign: "right" }}>
               <div className="stat-lbl">Start Date</div>
               <InlineEdit
