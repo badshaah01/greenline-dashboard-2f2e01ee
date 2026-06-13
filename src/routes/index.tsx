@@ -3604,51 +3604,53 @@ function DetailScreen({
         </div>
       </div>
 
-      <div className="flex items-center justify-between mt-8 mb-4 px-4 py-3 bg-red-50 border border-red-200 rounded-lg">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0">
-            <span className="text-red-600 text-sm font-bold">⚠</span>
+      <div className="mt-8 mb-4 bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="border-t-[3px] border-t-red-600 flex items-center justify-between px-5 py-4">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 min-w-[36px] rounded-lg bg-red-50 flex items-center justify-center flex-shrink-0">
+              <span className="text-red-600 text-lg">⚠</span>
+            </div>
+            <div style={{ textAlign: "left" }}>
+              <p className="text-sm font-medium text-red-800" style={{ margin: 0 }}>Danger zone</p>
+              <p className="text-xs text-gray-500 mt-0.5 leading-relaxed" style={{ margin: 0 }}>This action is permanent. All project data, milestones, and payments will be deleted and cannot be recovered.</p>
+            </div>
           </div>
-          <div style={{ textAlign: "left" }}>
-            <p className="text-red-700 font-semibold text-sm" style={{ margin: 0 }}>Danger Zone</p>
-            <p className="text-red-500 text-xs" style={{ margin: 0 }}>Deleting this project is permanent and cannot be undone. All data will be lost.</p>
-          </div>
-        </div>
-        <button
-          onClick={() => {
-            if (projectList.length <= 1) {
+          <button
+            onClick={() => {
+              if (projectList.length <= 1) {
+                setConfirmModal({
+                  open: true,
+                  title: "Delete Project",
+                  message: "You must have at least one project.",
+                  isAlert: true,
+                  onConfirm: () => {
+                    setConfirmModal((prev) => ({ ...prev, open: false }));
+                  },
+                  onCancel: () => {
+                    setConfirmModal((prev) => ({ ...prev, open: false }));
+                  }
+                });
+                return;
+              }
               setConfirmModal({
                 open: true,
                 title: "Delete Project",
-                message: "You must have at least one project.",
-                isAlert: true,
+                message: `Are you sure you want to delete '${p.name}'? This cannot be undone.`,
+                isAlert: false,
                 onConfirm: () => {
+                  onDeleteProject(p.id);
                   setConfirmModal((prev) => ({ ...prev, open: false }));
                 },
                 onCancel: () => {
                   setConfirmModal((prev) => ({ ...prev, open: false }));
                 }
               });
-              return;
-            }
-            setConfirmModal({
-              open: true,
-              title: "Delete Project",
-              message: `Are you sure you want to delete '${p.name}'? This cannot be undone.`,
-              isAlert: false,
-              onConfirm: () => {
-                onDeleteProject(p.id);
-                setConfirmModal((prev) => ({ ...prev, open: false }));
-              },
-              onCancel: () => {
-                setConfirmModal((prev) => ({ ...prev, open: false }));
-              }
-            });
-          }}
-          className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium whitespace-nowrap ml-6"
-        >
-          🗑 Delete Project
-        </button>
+            }}
+            className="ml-6 whitespace-nowrap flex items-center gap-1.5 px-3.5 py-1.5 text-sm font-medium text-red-600 border border-red-500 rounded-lg bg-transparent hover:bg-red-50 transition-colors"
+          >
+            Delete project
+          </button>
+        </div>
       </div>
 
       {isAddMaterialModalOpen && (
