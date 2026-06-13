@@ -2154,6 +2154,74 @@ function DetailScreen({
   highlightedSection: string | null;
 }) {
   const [isAddMaterialModalOpen, setIsAddMaterialModalOpen] = useState(false);
+  const [poFile, setPoFile] = useState<{ name: string; data: string } | null>(null);
+  const poInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem(`po_pdf_${id}`);
+      if (saved) {
+        try {
+          setPoFile(JSON.parse(saved));
+        } catch (e) {
+          setPoFile(null);
+        }
+      } else {
+        setPoFile(null);
+      }
+    }
+  }, [id]);
+
+  const base64ToBlob = (base64: string, mime: string = "application/pdf") => {
+    const base64Data = base64.includes(",") ? base64.split(",")[1] : base64;
+    const byteCharacters = atob(base64Data);
+    const byteNumbers = new Array(byteCharacters.length);
+    for (let i = 0; i < byteCharacters.length; i++) {
+      byteNumbers[i] = byteCharacters.charCodeAt(i);
+    }
+    const byteArray = new Uint8Array(byteNumbers);
+    return new Blob([byteArray], { type: mime });
+  };
+
+  const handleOpenPO = () => {
+    if (!poFile) return;
+    try {
+      const blob = base64ToBlob(poFile.data, "application/pdf");
+      const url = URL.createObjectURL(blob);
+      window.open(url, "_blank");
+    } catch (err) {
+      console.error("Failed to open PO PDF:", err);
+    }
+  };
+
+  const handleAttachPO = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.type !== "application/pdf") {
+      alert("Please upload a PDF file.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const result = event.target?.result as string;
+      if (result) {
+        const base64String = result.split(",")[1] || result;
+        const poData = { name: file.name, data: base64String };
+        localStorage.setItem(`po_pdf_${id}`, JSON.stringify(poData));
+        setPoFile(poData);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemovePO = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    localStorage.removeItem(`po_pdf_${id}`);
+    setPoFile(null);
+    if (poInputRef.current) {
+      poInputRef.current.value = "";
+    }
+  };
   const [libraryItems, setLibraryItems] = useState(() => getGlobalMaterialsLibrary());
   const [contextMenu, setContextMenu] = useState<{
     x: number;
@@ -2677,6 +2745,29 @@ function DetailScreen({
                 value={p.location}
                 onSave={(val) => onUpdateProject({ ...p, location: val })}
                 placeholder="Location"
+              />
+            </div>
+            <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+              {poFile ? (
+                <span className="text-xs text-green-700 bg-green-50 border border-green-200 rounded px-2 py-1 inline-flex items-center">
+                  <span className="cursor-pointer" onClick={handleOpenPO}>📄 {poFile.name}</span>
+                  <span className="ml-2 text-gray-400 hover:text-red-500 cursor-pointer text-xs" onClick={handleRemovePO}>✕</span>
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => poInputRef.current?.click()}
+                  className="text-xs text-gray-400 border border-dashed border-gray-300 rounded px-2 py-1 hover:border-green-400 hover:text-green-500 cursor-pointer transition-colors"
+                >
+                  📎 Attach PO PDF
+                </button>
+              )}
+              <input
+                type="file"
+                ref={poInputRef}
+                accept="application/pdf"
+                style={{ display: "none" }}
+                onChange={handleAttachPO}
               />
             </div>
             <div style={{ display: "flex", gap: ".4rem", marginTop: ".75rem", flexWrap: "wrap", alignItems: "center" }}>
