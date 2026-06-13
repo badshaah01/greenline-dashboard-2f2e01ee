@@ -3646,9 +3646,9 @@ function DetailScreen({
                 }
               });
             }}
-            className="ml-6 whitespace-nowrap flex items-center gap-1.5 px-3.5 py-1.5 text-sm font-medium text-red-600 border border-red-500 rounded-lg bg-transparent hover:bg-red-50 transition-colors"
+            className="ml-6 whitespace-nowrap flex items-center gap-1.5 px-4 py-2 bg-red-600 text-white hover:bg-red-700 border-none rounded-lg text-sm font-medium transition-colors"
           >
-            Delete project
+            <span className="text-white text-sm">🗑</span> Delete project
           </button>
         </div>
       </div>
