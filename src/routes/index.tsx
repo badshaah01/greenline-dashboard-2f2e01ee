@@ -3604,54 +3604,6 @@ function DetailScreen({
         </div>
       </div>
 
-      <div className="mt-8 mb-4 bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <div className="border-t-[3px] border-t-red-600 flex items-center justify-between px-5 py-4">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 min-w-[36px] rounded-lg bg-red-50 flex items-center justify-center flex-shrink-0">
-              <span className="text-red-600 text-lg">⚠</span>
-            </div>
-            <div style={{ textAlign: "left" }}>
-              <p className="text-sm font-medium text-red-800" style={{ margin: 0 }}>Danger zone</p>
-              <p className="text-xs text-gray-500 mt-0.5 leading-relaxed" style={{ margin: 0 }}>This action is permanent. All project data, milestones, and payments will be deleted and cannot be recovered.</p>
-            </div>
-          </div>
-          <button
-            onClick={() => {
-              if (projectList.length <= 1) {
-                setConfirmModal({
-                  open: true,
-                  title: "Delete Project",
-                  message: "You must have at least one project.",
-                  isAlert: true,
-                  onConfirm: () => {
-                    setConfirmModal((prev) => ({ ...prev, open: false }));
-                  },
-                  onCancel: () => {
-                    setConfirmModal((prev) => ({ ...prev, open: false }));
-                  }
-                });
-                return;
-              }
-              setConfirmModal({
-                open: true,
-                title: "Delete Project",
-                message: `Are you sure you want to delete '${p.name}'? This cannot be undone.`,
-                isAlert: false,
-                onConfirm: () => {
-                  onDeleteProject(p.id);
-                  setConfirmModal((prev) => ({ ...prev, open: false }));
-                },
-                onCancel: () => {
-                  setConfirmModal((prev) => ({ ...prev, open: false }));
-                }
-              });
-            }}
-            className="ml-6 whitespace-nowrap flex items-center gap-1.5 px-4 py-2 bg-red-600 text-white hover:bg-red-700 border-none rounded-lg text-sm font-medium transition-colors"
-          >
-            <span className="text-white text-sm">🗑</span> Delete project
-          </button>
-        </div>
-      </div>
 
       {isAddMaterialModalOpen && (
         <div className="modal-backdrop" onClick={() => setIsAddMaterialModalOpen(false)}>
