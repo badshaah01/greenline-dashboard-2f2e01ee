@@ -3891,13 +3891,15 @@ function DetailScreen({
         </div>
       )}
 
-      <button
-        onClick={() => setShowDeleteModal(true)}
-        className="fixed bottom-6 right-6 bg-red-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2"
-      >
-        <Trash2 size={16} />
-        Delete Project
-      </button>
+      <div className="flex justify-end mt-8 mb-6">
+        <button
+          onClick={() => setShowDeleteModal(true)}
+          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-red-600 border border-red-300 bg-white rounded-lg hover:bg-red-50 transition-colors"
+        >
+          <Trash2 size={16} />
+          Delete Project
+        </button>
+      </div>
 
       {showDeleteModal && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
