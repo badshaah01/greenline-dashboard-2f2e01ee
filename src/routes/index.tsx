@@ -3894,7 +3894,7 @@ function DetailScreen({
       <div className="flex justify-end mt-8 mb-6">
         <button
           onClick={() => setShowDeleteModal(true)}
-          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-red-600 border border-red-300 bg-white rounded-lg hover:bg-red-50 transition-colors"
+          className="flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-red-600 border-none rounded-lg hover:bg-red-700 transition-colors"
         >
           <Trash2 size={16} />
           Delete Project
