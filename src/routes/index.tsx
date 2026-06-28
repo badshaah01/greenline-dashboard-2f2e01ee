@@ -2038,7 +2038,7 @@ function HomeScreen({
         </div>
       </div>
 
-      <div className="g21 fade-up delay-1">
+      <div className="fade-up delay-1">
         <div>
           <div className="sh mb"><span className="sh-label">Active Projects</span><div className="sh-line"></div></div>
           <div className="g3">
@@ -2096,51 +2096,6 @@ function HomeScreen({
             ) : (
               <div className="no-projects-msg" style={{ gridColumn: "span 3" }}>
                 No active projects found in the selected date range. Try expanding your search.
-              </div>
-            )}
-          </div>
-        </div>
-        <div>
-          <div className="sh mb"><span className="sh-label">Alerts · Action Needed</span><div className="sh-line"></div></div>
-          <div>
-            {filteredAlerts.length > 0 ? (
-              filteredAlerts.slice(0, 5).map((a, i) => {
-                const matchingProj = projectList.find(
-                  (p) => p.name.trim().toLowerCase() === a.project.trim().toLowerCase()
-                );
-                const sectionId = getSectionForAlert(a);
-
-                return (
-                  <div key={i} className={`alert-item ai-${a.type}`}>
-                    <div className="ai-icon">{a.type === "danger" ? "!" : a.type === "warning" ? "!" : "✓"}</div>
-                    <div style={{ flex: 1 }}>
-                      <div className="ai-title">{a.title}</div>
-                      <div className="ai-desc">{a.desc}</div>
-                      <div className="ai-project">{a.project}</div>
-                      {matchingProj && (
-                        <button
-                          className="view-project-btn"
-                          onClick={() => onNavigateToProject(matchingProj.id, sectionId)}
-                          style={{
-                            padding: '6px 14px',
-                            borderRadius: '8px',
-                            border: '1.5px solid #16a34a',
-                            background: 'transparent',
-                            color: '#16a34a',
-                            fontSize: '13px',
-                            fontWeight: 500,
-                          }}
-                        >
-                          View Project <span className="btn-arrow">→</span>
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                );
-              })
-            ) : (
-              <div className="no-projects-msg" style={{ padding: "2rem 1rem" }}>
-                No active alerts for the selected range.
               </div>
             )}
           </div>
