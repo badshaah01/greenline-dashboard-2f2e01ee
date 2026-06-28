@@ -1593,6 +1593,69 @@ tr:hover .qty-controls {
 .context-menu-item:hover {
   background: var(--red-soft);
 }
+
+/* ── CUSTOM DELETE BUTTON & MODAL ── */
+.custom-delete-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  padding: 12px 24px !important;
+  font-family: 'Inter', sans-serif !important;
+  font-size: 0.875rem !important;
+  font-weight: 500 !important;
+  color: #ffffff !important;
+  background-color: #dc2626 !important;
+  border: 1px solid #dc2626 !important;
+  border-radius: 8px !important;
+  cursor: pointer !important;
+  transition: background-color 0.15s, border-color 0.15s !important;
+}
+.custom-delete-btn:hover {
+  background-color: #b91c1c !important;
+  border-color: #b91c1c !important;
+}
+.custom-modal-card {
+  background: #ffffff !important;
+  border: 1px solid #e5e7eb !important;
+  border-radius: 16px !important;
+  padding: 32px !important;
+  width: 100% !important;
+  max-width: 440px !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
+  box-sizing: border-box !important;
+}
+.custom-modal-cancel {
+  font-family: 'Inter', sans-serif !important;
+  padding: 10px 20px !important;
+  font-size: 0.875rem !important;
+  font-weight: 500 !important;
+  color: #4b5563 !important;
+  background-color: #f3f4f6 !important;
+  border: 1px solid #d1d5db !important;
+  border-radius: 8px !important;
+  cursor: pointer !important;
+  transition: background-color 0.15s, border-color 0.15s !important;
+}
+.custom-modal-cancel:hover {
+  background-color: #e5e7eb !important;
+  border-color: #c7d2fe !important;
+}
+.custom-modal-confirm {
+  font-family: 'Inter', sans-serif !important;
+  padding: 10px 20px !important;
+  font-size: 0.875rem !important;
+  font-weight: 500 !important;
+  color: #ffffff !important;
+  background-color: #dc2626 !important;
+  border: 1px solid #dc2626 !important;
+  border-radius: 8px !important;
+  cursor: pointer !important;
+  transition: background-color 0.15s, border-color 0.15s !important;
+}
+.custom-modal-confirm:hover {
+  background-color: #b91c1c !important;
+  border-color: #b91c1c !important;
+}
 `;
 
 
@@ -3894,7 +3957,7 @@ function DetailScreen({
       <div className="flex justify-end mt-8 mb-6">
         <button
           onClick={() => setShowDeleteModal(true)}
-          className="flex items-center gap-3 px-6 py-3 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors"
+          className="custom-delete-btn"
         >
           <Trash2 size={16} />
           Delete Project
@@ -3903,13 +3966,13 @@ function DetailScreen({
 
       {showDeleteModal && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-2xl">
+          <div className="custom-modal-card">
             <h3 className="text-lg font-semibold text-gray-900 mb-2">Delete Project?</h3>
             <p className="text-sm text-gray-500 leading-relaxed mb-8">This will permanently delete all project data. This cannot be undone.</p>
             <div className="flex justify-end items-center gap-3">
               <button
                 onClick={() => setShowDeleteModal(false)}
-                className="px-5 py-2.5 text-sm font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                className="custom-modal-cancel"
               >
                 Cancel
               </button>
@@ -3918,7 +3981,7 @@ function DetailScreen({
                   onDeleteProject(p.id);
                   setShowDeleteModal(false);
                 }}
-                className="px-5 py-2.5 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors"
+                className="custom-modal-confirm"
               >
                 Confirm
               </button>
