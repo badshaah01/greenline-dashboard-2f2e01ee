@@ -1847,7 +1847,7 @@ function InlineEdit({
   );
 }
 
-function Header({ screen, setScreen }: { screen: string; setScreen: (s: "home" | "detail" | "alerts") => void }) {
+function Header({ screen, setScreen }: { screen: string; setScreen: (s: "home" | "detail" | "alerts" | "search") => void }) {
   const [date, setDate] = useState("");
   useEffect(() => {
     setDate(new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }));
@@ -1865,6 +1865,7 @@ function Header({ screen, setScreen }: { screen: string; setScreen: (s: "home" |
         <button className={`nav-btn ${screen === "home" ? "active" : ""}`} onClick={() => setScreen("home")}>Command Centre</button>
         <button className={`nav-btn ${screen === "detail" ? "active" : ""}`} onClick={() => setScreen("detail")}>Project Detail</button>
         <button className={`nav-btn ${screen === "alerts" ? "active" : ""}`} onClick={() => setScreen("alerts")}>Alerts</button>
+        <button className={`nav-btn ${screen === "search" ? "active" : ""}`} onClick={() => setScreen("search")}>Client Search</button>
       </div>
       <div className="header-right">
         <div className="live-pill"><div className="pulse"></div>Live</div>
@@ -3968,6 +3969,228 @@ function DetailScreen({
   );
 }
 
+function SearchScreen({
+  projectList,
+  onNavigateToProject
+}: {
+  projectList: Project[];
+  onNavigateToProject: (projectId: number, sectionId: string | null) => void;
+}) {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+
+  const uniqueClients = useMemo(() => {
+    const clients = new Set<string>();
+    projectList.forEach((p) => {
+      if (p.client && p.client.trim()) {
+        clients.add(p.client.trim());
+      }
+    });
+    return Array.from(clients);
+  }, [projectList]);
+
+  const filteredProjects = useMemo(() => {
+    if (!searchQuery.trim()) return [];
+    
+    return projectList.filter((p) => {
+      const clientMatch = 
+        p.client.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        p.name.toLowerCase().includes(searchQuery.toLowerCase());
+      
+      if (!clientMatch) return false;
+
+      if (fromDate || toDate) {
+        const pStart = parseProjectDate(p.startDate, false);
+        const pEnd = parseProjectDate(p.endDate, true);
+        const selStart = fromDate ? parseInputDate(fromDate, false) : new Date("1970-01-01");
+        const selEnd = toDate ? parseInputDate(toDate, true) : new Date("2999-12-31");
+        return pStart <= selEnd && pEnd >= selStart;
+      }
+
+      return true;
+    });
+  }, [projectList, searchQuery, fromDate, toDate]);
+
+  return (
+    <div className="screen active">
+      <div className="sh mb">
+        <span className="sh-label">Client Directory & Project History</span>
+        <div className="sh-line"></div>
+      </div>
+
+      <div className="card mb fade-up" style={{ padding: "1.5rem" }}>
+        <div style={{ display: "flex", gap: "1.5rem", flexWrap: "wrap", alignItems: "flex-end" }}>
+          <div style={{ flex: "1 1 250px" }}>
+            <label className="modal-form-label" style={{ marginBottom: "6px", display: "block" }}>Search Company or Client Name</label>
+            <div style={{ display: "flex", gap: "8px" }}>
+              <input
+                type="text"
+                placeholder="e.g. Zara, Max Retail, H&M..."
+                className="modal-form-input"
+                style={{ width: "100%", height: "38px" }}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery("")}
+                  className="nav-btn"
+                  style={{ background: "var(--surface-3)", padding: "0 12px", border: "1px solid var(--border)", borderRadius: "6px" }}
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
+            <div>
+              <label className="modal-form-label" style={{ marginBottom: "6px", display: "block" }}>From Date</label>
+              <input
+                type="date"
+                className="modal-form-input"
+                style={{ height: "38px", width: "140px" }}
+                value={fromDate}
+                onChange={(e) => setFromDate(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="modal-form-label" style={{ marginBottom: "6px", display: "block" }}>To Date</label>
+              <input
+                type="date"
+                className="modal-form-input"
+                style={{ height: "38px", width: "140px" }}
+                value={toDate}
+                onChange={(e) => setToDate(e.target.value)}
+              />
+            </div>
+            {(fromDate || toDate) && (
+              <button
+                className="nav-btn"
+                style={{ alignSelf: "flex-end", height: "38px", background: "var(--surface-3)", padding: "0 12px", border: "1px solid var(--border)", borderRadius: "6px" }}
+                onClick={() => {
+                  setFromDate("");
+                  setToDate("");
+                }}
+              >
+                Reset Dates
+              </button>
+            )}
+          </div>
+        </div>
+
+        {uniqueClients.length > 0 && (
+          <div style={{ marginTop: "1rem" }}>
+            <span style={{ fontSize: "0.72rem", color: "var(--text-3)", display: "block", marginBottom: "6px", fontFamily: "JetBrains Mono, monospace" }}>QUICK SUGGESTIONS:</span>
+            <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+              {uniqueClients.map((client) => (
+                <button
+                  key={client}
+                  className="nav-btn"
+                  onClick={() => setSearchQuery(client)}
+                  style={{
+                    fontSize: "0.74rem",
+                    padding: "4px 10px",
+                    background: searchQuery === client ? "var(--green-soft)" : "var(--surface-2)",
+                    border: searchQuery === client ? "1px solid var(--green-line)" : "1px solid var(--border)",
+                    color: searchQuery === client ? "var(--green)" : "var(--text-2)",
+                    borderRadius: "6px",
+                    cursor: "pointer"
+                  }}
+                >
+                  {client}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="fade-up delay-1">
+        <div className="sh mb">
+          <span className="sh-label">
+            {searchQuery.trim() 
+              ? `Projects for "${searchQuery}" (${filteredProjects.length} found)` 
+              : "Search results will appear here"}
+          </span>
+          <div className="sh-line"></div>
+        </div>
+
+        {searchQuery.trim() ? (
+          filteredProjects.length > 0 ? (
+            <div className="g3">
+              {filteredProjects.map((p) => {
+                const rcv = getProjectReceived(p);
+                const net = rcv - getProjectSpent(p);
+                const netStr = net >= 0 ? "+" + fmt(net) : "-" + fmt(Math.abs(net));
+                const netColor = net >= 0 ? "c-green" : "c-red";
+                const sp = p.status === "healthy" ? "sp-green" : p.status === "warning" ? "sp-amber" : "sp-red";
+                const pf = p.status === "healthy" ? "pf-green" : p.status === "warning" ? "pf-amber" : "pf-red";
+                return (
+                  <div key={p.id} className={`project-card ${p.status}`}>
+                    <div className="pc-top">
+                      <div>
+                        <div className="pc-name">{p.name}</div>
+                        <div className="pc-client">{p.client}</div>
+                        <div className="pc-dates" style={{ fontSize: "0.76rem", color: "var(--text-3)", marginTop: "0.2rem" }}>
+                          {formatProjectDate(p.startDate)} - {formatProjectDate(p.endDate)}
+                        </div>
+                      </div>
+                      <span className={`status-pill ${sp}`}>{p.statusLabel}</span>
+                    </div>
+                    <div className="pc-stats" style={{ marginTop: "1rem" }}>
+                      <div className="pc-stat-item">
+                        <div className="pc-stat-lbl">Contract</div>
+                        <div className="pc-stat-val">{fmt(p.contractValue)}</div>
+                      </div>
+                      <div className="pc-stat-item">
+                        <div className="pc-stat-lbl">Received</div>
+                        <div className="pc-stat-val c-green">{fmt(rcv)}</div>
+                      </div>
+                      <div className="pc-stat-item">
+                        <div className="pc-stat-lbl">Net</div>
+                        <div className={`pc-stat-val ${netColor}`}>{netStr}</div>
+                      </div>
+                    </div>
+                    
+                    <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "1rem" }}>
+                      <button
+                        className="nav-btn"
+                        onClick={() => onNavigateToProject(p.id, null)}
+                        style={{
+                          fontSize: "0.78rem",
+                          padding: "6px 14px",
+                          background: "var(--green)",
+                          color: "#ffffff",
+                          border: "none",
+                          borderRadius: "6px",
+                          fontWeight: 500,
+                          cursor: "pointer"
+                        }}
+                      >
+                        Go to Project →
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="no-projects-msg" style={{ padding: "3rem 1rem" }}>
+              No projects found matching the criteria. Try adjusting your search query or date range filters.
+            </div>
+          )
+        ) : (
+          <div className="no-projects-msg" style={{ padding: "4rem 1rem" }}>
+            Please type a company name or click one of the quick suggestions above to start searching.
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function AlertsScreen({
   alertsList,
   projectList,
@@ -4190,7 +4413,7 @@ function ConfirmModal({
 }
 
 function Dashboard() {
-  const [screen, setScreen] = useState<"home" | "detail" | "alerts">("home");
+  const [screen, setScreen] = useState<"home" | "detail" | "alerts" | "search">("home");
   const [projectId, setProjectId] = useState(0);
   const [fromDate, setFromDate] = useState(() => {
     if (typeof window !== "undefined") {
@@ -4399,6 +4622,12 @@ function Dashboard() {
         {screen === "alerts" && (
           <AlertsScreen
             alertsList={alertsList}
+            projectList={projectList}
+            onNavigateToProject={handleNavigateToProject}
+          />
+        )}
+        {screen === "search" && (
+          <SearchScreen
             projectList={projectList}
             onNavigateToProject={handleNavigateToProject}
           />
