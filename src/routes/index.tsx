@@ -118,6 +118,7 @@ type Project = {
   totalBudget?: number;
   categoryBudgets?: Record<string, number>;
   poNumber?: string;
+  invoiceNumber?: string;
 };
 
 const projects: Project[] = [
@@ -128,6 +129,7 @@ const projects: Project[] = [
     contractValue: 3800000, completion: 62,
     alertMsg: "All systems healthy", alertType: "safe",
     poNumber: "PO-2025-001",
+    invoiceNumber: "INV-2025-001",
     milestones: [
       { name: "Advance (30%)", amount: 1140000, date: "15 Jan 2025", status: "done" },
       { name: "Mobilisation & Demolition", amount: 570000, date: "10 Feb 2025", status: "done" },
@@ -181,6 +183,7 @@ const projects: Project[] = [
     contractValue: 2900000, completion: 28,
     alertMsg: "Electrical spend exceeding budget", alertType: "warning",
     poNumber: "PO-2025-002",
+    invoiceNumber: "INV-2025-002",
     milestones: [
       { name: "Advance (30%)", amount: 870000, date: "05 Mar 2025", status: "done" },
       { name: "Mobilisation & Demolition", amount: 435000, date: "01 Apr 2025", status: "done" },
@@ -232,6 +235,7 @@ const projects: Project[] = [
     contractValue: 3050000, completion: 12,
     alertMsg: "Client milestone payment 18 days overdue", alertType: "danger",
     poNumber: "PO-2025-003",
+    invoiceNumber: "INV-2025-003",
     milestones: [
       { name: "Advance (30%)", amount: 915000, date: "20 Apr 2025", status: "done" },
       { name: "Mobilisation & Demolition", amount: 457500, date: "15 May 2025", status: "overdue" },
@@ -2073,6 +2077,11 @@ function HomeScreen({
                             PO: {p.poNumber}
                           </span>
                         )}
+                        {p.invoiceNumber && (
+                          <span className="status-pill sp-neutral" style={{ fontSize: "0.65rem", padding: "2px 8px" }}>
+                            INV: {p.invoiceNumber}
+                          </span>
+                        )}
                       </div>
                     </div>
                     <div className="pc-stats">
@@ -2145,7 +2154,8 @@ const cloneProjectAsTemplate = (p: Project): Project => {
     vendors: [],
     pettyCash: [],
     totalBudget: 0,
-    poNumber: ""
+    poNumber: "",
+    invoiceNumber: ""
   };
 };
 
@@ -2817,6 +2827,14 @@ function DetailScreen({
                 className="status-pill sp-neutral"
                 inputClassName="inline-pill-input"
                 placeholder="PO-XXXX"
+              />
+              <InlineEdit
+                value={p.invoiceNumber || ""}
+                formatValue={(val) => `INV: ${val || "Set Invoice Number"}`}
+                onSave={(val) => onUpdateProject({ ...p, invoiceNumber: val })}
+                className="status-pill sp-neutral"
+                inputClassName="inline-pill-input"
+                placeholder="INV-XXXX"
               />
             </div>
           </div>
@@ -4137,7 +4155,19 @@ function SearchScreen({
                           {formatProjectDate(p.startDate)} - {formatProjectDate(p.endDate)}
                         </div>
                       </div>
-                      <span className={`status-pill ${sp}`}>{p.statusLabel}</span>
+                      <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "6px" }}>
+                        <span className={`status-pill ${sp}`}>{p.statusLabel}</span>
+                        {p.poNumber && (
+                          <span className="status-pill sp-neutral" style={{ fontSize: "0.65rem", padding: "2px 8px" }}>
+                            PO: {p.poNumber}
+                          </span>
+                        )}
+                        {p.invoiceNumber && (
+                          <span className="status-pill sp-neutral" style={{ fontSize: "0.65rem", padding: "2px 8px" }}>
+                            INV: {p.invoiceNumber}
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <div className="pc-stats" style={{ marginTop: "1rem" }}>
                       <div className="pc-stat-item">
