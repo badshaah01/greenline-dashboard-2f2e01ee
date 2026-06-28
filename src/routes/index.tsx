@@ -117,6 +117,7 @@ type Project = {
   vendors: Vendor[]; salary: Salary[]; pettyCash: Petty[];
   totalBudget?: number;
   categoryBudgets?: Record<string, number>;
+  poNumber?: string;
 };
 
 const projects: Project[] = [
@@ -126,6 +127,7 @@ const projects: Project[] = [
     startDate: "10 Jan 2025", endDate: "30 Jun 2025",
     contractValue: 3800000, completion: 62,
     alertMsg: "All systems healthy", alertType: "safe",
+    poNumber: "PO-2025-001",
     milestones: [
       { name: "Advance (30%)", amount: 1140000, date: "15 Jan 2025", status: "done" },
       { name: "Mobilisation & Demolition", amount: 570000, date: "10 Feb 2025", status: "done" },
@@ -178,6 +180,7 @@ const projects: Project[] = [
     startDate: "01 Mar 2025", endDate: "31 Aug 2025",
     contractValue: 2900000, completion: 28,
     alertMsg: "Electrical spend exceeding budget", alertType: "warning",
+    poNumber: "PO-2025-002",
     milestones: [
       { name: "Advance (30%)", amount: 870000, date: "05 Mar 2025", status: "done" },
       { name: "Mobilisation & Demolition", amount: 435000, date: "01 Apr 2025", status: "done" },
@@ -228,6 +231,7 @@ const projects: Project[] = [
     startDate: "15 Apr 2025", endDate: "30 Sep 2025",
     contractValue: 3050000, completion: 12,
     alertMsg: "Client milestone payment 18 days overdue", alertType: "danger",
+    poNumber: "PO-2025-003",
     milestones: [
       { name: "Advance (30%)", amount: 915000, date: "20 Apr 2025", status: "done" },
       { name: "Mobilisation & Demolition", amount: 457500, date: "15 May 2025", status: "overdue" },
@@ -2061,7 +2065,14 @@ function HomeScreen({
                           {formatProjectDate(p.startDate)} - {formatProjectDate(p.endDate)}
                         </div>
                       </div>
-                      <span className={`status-pill ${sp}`}>{p.statusLabel}</span>
+                      <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "6px" }}>
+                        <span className={`status-pill ${sp}`}>{p.statusLabel}</span>
+                        {p.poNumber && (
+                          <span className="status-pill sp-neutral" style={{ fontSize: "0.65rem", padding: "2px 8px" }}>
+                            PO: {p.poNumber}
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <div className="pc-stats">
                       <div className="pc-stat-item">
@@ -2132,7 +2143,8 @@ const cloneProjectAsTemplate = (p: Project): Project => {
     salary: [],
     vendors: [],
     pettyCash: [],
-    totalBudget: 0
+    totalBudget: 0,
+    poNumber: ""
   };
 };
 
@@ -2796,6 +2808,14 @@ function DetailScreen({
                 onSave={(val) => onUpdateProject({ ...p, completion: Number(val) })}
                 className="status-pill sp-neutral"
                 inputClassName="inline-pill-input"
+              />
+              <InlineEdit
+                value={p.poNumber || ""}
+                formatValue={(val) => `PO: ${val || "Set PO Number"}`}
+                onSave={(val) => onUpdateProject({ ...p, poNumber: val })}
+                className="status-pill sp-neutral"
+                inputClassName="inline-pill-input"
+                placeholder="PO-XXXX"
               />
             </div>
           </div>
